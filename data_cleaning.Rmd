@@ -390,6 +390,14 @@ recode_vars <- function(dataset_choice, variables){
 }
 
 
+
+# check distribution of one variable for comparison
+print("CHO_S3 before recoding:")
+print(table(data_choc$CHO_S3))
+print("")
+
+
+
 # recode dataset for chocolate
 data_choc <- recode_vars(data_choc, c("CHO_S3", "CHO_S5", "CHO_S7", "CHO_S8", 
                                       "CHO_S9"))
@@ -401,6 +409,12 @@ data_pasta <- recode_vars(data_pasta, c("PA_S3", "PA_S5", "PA_S7", "PA_S8",
 # recode dataset for groundbeef
 data_grouf <- recode_vars(data_grouf, c("GB_S3", "GB_S5", "GB_S7", "GB_S8",
                                         "GB_S9"))
+
+
+
+# check distribution for one variable after recoding
+print("CHO_S3 after recoding:")
+print(table(data_choc$CHO_S3))
 
 
 
@@ -427,17 +441,57 @@ build_env_cons_var <- function(dataset, product){
   
   dataset_choice_cn_less_expensive_extreme <- dataset_choice %>% 
     select(matches(paste0(product, "_S[5]")))
+  
+  
+  # check
+  print("data subsets:")
+  print(product)
+  print(colnames(dataset_choice_same_price))
+  print(colnames(dataset_choice_cn_more_expensive))
+  print(colnames(dataset_choice_cn_more_expensive_extreme))
+  print(colnames(dataset_choice_cn_less_expensive))
+  print(colnames(dataset_choice_cn_less_expensive_extreme))
+  print("")
+  
+  
+  
 
   # recode variables to match the score the particular answer gives
+  
+  print(paste0("same price before ", product, ":"))
+  print(lapply(dataset_choice_same_price, table))
+  
+  
   cols_same_price <- colnames(dataset_choice_same_price)
   dataset_choice_same_price <- dataset_choice_same_price %>%
     mutate_at(cols_same_price, funs(recode(., '1' = -1, '2' = 1, '3' = 0, 
                                            .default = NaN)))
   
+  print(paste0("same price after ", product, ":"))
+  print(lapply(dataset_choice_same_price, table))
+  
+  
+  
+  print(paste0("cn more expensive before ", product, ":"))
+  print(lapply(dataset_choice_cn_more_expensive, table))
+  
+  
+  
   cols_cn_more_expensive <- colnames(dataset_choice_cn_more_expensive)
   dataset_choice_cn_more_expensive <- dataset_choice_cn_more_expensive %>%
     mutate_at(cols_cn_more_expensive, funs(recode(., '1' = 0, '2' = 2, 
                                                   '3' = 0, .default = NaN)))
+  
+  
+  
+  print(paste0("cn more expensive after ", product, ":"))
+  print(lapply(dataset_choice_cn_more_expensive, table))
+  
+  
+  print(paste0("cn more expensive extreme before ", product, ":"))
+  print(lapply(dataset_choice_cn_more_expensive_extreme, table))
+  
+  
   
   cols_cn_more_expensive_extreme <- 
     colnames(dataset_choice_cn_more_expensive_extreme)
@@ -447,10 +501,29 @@ build_env_cons_var <- function(dataset, product){
                                                           '3' = 0, 
                                                           .default = NaN))) 
   
+    
+  print(paste0("cn more expensive extreme after ", product, ":"))
+  print(lapply(dataset_choice_cn_more_expensive_extreme, table))
+  
+  
+  print(paste0("cn less expensive before ", product, ":"))
+  print(lapply(dataset_choice_cn_less_expensive, table))
+  
+  
+  
   cols_cn_less_expensive <- colnames(dataset_choice_cn_less_expensive)
   dataset_choice_cn_less_expensive <- dataset_choice_cn_less_expensive %>%
     mutate_at(cols_cn_less_expensive, funs(recode(., '1' = -2, '2' = 0, 
                                                   '3' = 0, .default = NaN)))
+  
+      
+  print(paste0("cn less expensive after ", product, ":"))
+  print(lapply(dataset_choice_cn_less_expensive, table))
+  
+  
+  print(paste0("cn less expensive extreme before ", product, ":"))
+  print(lapply(dataset_choice_cn_less_expensive_extreme, table))
+  
   
   cols_cn_less_expensive_extreme <- 
     colnames(dataset_choice_cn_less_expensive_extreme)
@@ -459,6 +532,11 @@ build_env_cons_var <- function(dataset, product){
     mutate_at(cols_cn_less_expensive_extreme, funs(recode(., '1' = -3, '2' = 0,
                                                    '3' = 0, .default = NaN)))
   
+  
+  print(paste0("cn less expensive extreme after ", product, ":"))
+  print(lapply(dataset_choice_cn_less_expensive_extreme, table))
+  print("")
+  print("=====================================================================")
   
   # calculate indicator
   dataset["environmental_consciousness_indicator"] = 
@@ -521,6 +599,7 @@ hist(data_grouf$environmental_consciousness_indicator, col = "cornflowerblue",
 ```{r factor analysis}
 # check whether similar choices were made
 
+# answers already recoded to have the same direction (recode_vars-function)
 
 
 
