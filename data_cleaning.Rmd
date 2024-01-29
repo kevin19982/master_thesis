@@ -591,6 +591,9 @@ hist(data_grouf$environmental_consciousness_indicator, col = "cornflowerblue",
 
 
 
+# all conversions examined, given the system at hand, the distributions should
+# be sound
+
 
 
 ```
@@ -600,6 +603,126 @@ hist(data_grouf$environmental_consciousness_indicator, col = "cornflowerblue",
 # check whether similar choices were made
 
 # answers already recoded to have the same direction (recode_vars-function)
+
+# does factor analysis make sense for the type of data?
+
+library(psych)
+library(GPArotation)
+library(nFactors)
+
+
+
+# get an estimate of number of factors
+evs_choc <- eigen(cor(na.omit(data_choc %>% 
+                                select(matches("_S[[:digit:]]+")))))
+ap_choc <- parallel(subject=nrow(data_choc %>% 
+                                   select(matches("_S[[:digit:]]+"))), 
+                    var=ncol(data_choc %>% select(matches("_S[[:digit:]]+"))), 
+                    rep=100, cent=0.5)
+nsr_choc <- nScree(x=evs_choc$values, apparallel=ap_choc$eigen$qevpea)
+print(plotnScree(nsr_choc))
+
+# 2-3 factors
+choc_fa <- factanal(data_choc %>% select(matches("_S[[:digit:]]+")), 
+                    factors = 3)
+print(choc_fa)
+print(choc_fa$uniquenesses)
+
+
+# using another method
+library(psych)
+
+print("")
+print("=========================================")
+choc_fa_2 <- fa(data_choc %>% select(matches("_S[[:digit:]]+")), nfactors = 3,
+                scores = "regression", rotate = "oblimin")
+print(choc_fa_2$loadings)
+print("")
+print("loadings:")
+print(choc_fa_2$uniquenesses)
+
+
+# visualize first two factors
+plot(choc_fa_2$loadings[,1], choc_fa_2$loadings[,2], 
+     xlab= "1", ylab = "2", xlim = c(-1,1), ylim = c(-1,1), main = "chocolate")
+text(choc_fa_2$loadings[,1] - 0.00, choc_fa_2$loadings[,2] + 0.20,
+     colnames(data_choc %>% select(matches("_S[[:digit:]]+"))), 
+     col = "cornflowerblue")
+abline(h = 0, v = 0)
+
+
+
+# similar answers for questions with same price; as well as questions for CN 
+# more expensive; as well as question where CN less expensive
+
+
+
+
+
+# pasta
+# get an estimate of number of factors
+evs_pasta <- eigen(cor(na.omit(data_pasta %>% 
+                                 select(matches("_S[[:digit:]]+")))))
+ap_pasta <- parallel(subject=nrow(data_pasta %>% 
+                                    select(matches("_S[[:digit:]]+"))),
+                     var=ncol(data_pasta %>% select(matches("_S[[:digit:]]+"))),
+                     rep=100,cent=0.5)
+nsr_pasta <- nScree(x=evs_pasta$values, apparallel=ap_pasta$eigen$qevpea)
+print("")
+print("======================================================================")
+print("pasta:")
+print(plotnScree(nsr_pasta))
+pasta_fa_2 <- fa(data_pasta %>% select(matches("_S[[:digit:]]+")), nfactors = 2,
+                scores = "regression", rotate = "oblimin")
+print(pasta_fa_2$loadings)
+print("")
+print("loadings:")
+print(pasta_fa_2$uniquenesses)
+
+
+# visualize first two factors
+plot(pasta_fa_2$loadings[,1], pasta_fa_2$loadings[,2], 
+     xlab= "1", ylab = "2", xlim = c(-1,1), ylim = c(-1,1), main = "pasta")
+text(pasta_fa_2$loadings[,1] - 0.00, pasta_fa_2$loadings[,2] + 0.20,
+     colnames(data_pasta %>% select(matches("_S[[:digit:]]+"))), 
+     col = "cornflowerblue")
+abline(h = 0, v = 0)
+
+
+
+
+
+# ground beef
+evs_grouf <- eigen(cor(na.omit(data_grouf %>% 
+                                 select(matches("_S[[:digit:]]+")))))
+ap_grouf <- parallel(subject=nrow(data_grouf %>% 
+                                    select(matches("_S[[:digit:]]+"))),
+                     var=ncol(data_grouf %>% select(matches("_S[[:digit:]]+"))),
+                     rep=100,cent=0.5)
+nsr_grouf <- nScree(x=evs_grouf$values, apparallel=ap_grouf$eigen$qevpea)
+print("")
+print("======================================================================")
+print("ground beef:")
+print(plotnScree(nsr_grouf))
+grouf_fa_2 <- fa(data_grouf %>% select(matches("_S[[:digit:]]+")), nfactors = 2,
+                scores = "regression", rotate = "oblimin")
+print(grouf_fa_2$loadings)
+print("")
+print("loadings:")
+print(grouf_fa_2$uniquenesses)
+
+
+
+
+# visualize first two factors
+plot(grouf_fa_2$loadings[,1], grouf_fa_2$loadings[,2], 
+     xlab= "1", ylab = "2", xlim = c(-1,1), ylim = c(-1,1), 
+     main = "ground beef")
+text(grouf_fa_2$loadings[,1] - 0.00, grouf_fa_2$loadings[,2] + 0.20,
+     colnames(data_grouf %>% select(matches("_S[[:digit:]]+"))), 
+     col = "cornflowerblue")
+abline(h = 0, v = 0)
+
 
 
 
@@ -629,7 +752,7 @@ hist(data_grouf$environmental_consciousness_indicator, col = "cornflowerblue",
 
 ```{r random forest}
 
-
+# also add a directed acylyic graph at some point... would be a lovely detail
 
 
 
