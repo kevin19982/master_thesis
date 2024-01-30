@@ -733,6 +733,70 @@ abline(h = 0, v = 0)
 
 
 
+```{r exploratory factor analysis}
+# function to conduct an exploratory factor analysis
+get_factor_analysis_exploratory <- function(dataset, rotations){
+  
+  # subset data
+  data_temp <- dataset %>% select(matches("_S[[:digit:]]+"))
+  # choose number of factors
+  evs_temp <- eigen(cor(na.omit(data_temp )))
+  ap_temp <- parallel(subject = nrow(data_temp), var = ncol(data_temp),
+                      rep = 100, cent = 0.5)
+  nsr_temp <- nScree(x = evs_temp$values, apparallel = ap_temp$eigen$qevpea)
+  
+  # print the scree plot
+  print(plotnScree(nsr_temp))
+  
+  
+  # choose number of factors
+  n_fact <- nsr_temp$Components$noc
+
+  print(paste0("number of factors: ", n_fact))
+  
+  
+  # factor analysis
+  for (rotation in rotations){
+    fa_temp <- fa(data_temp, nfactors = n_fact, scores = "regression",
+                  rotate = rotation)
+    
+    # print results
+    print(paste0(rotation, ":"))
+    print("laodings:")
+    print(fa_temp$loadings)
+    print("uniquenesses:")
+    print(fa_temp$uniquenesses)
+    
+    # visualize first two factors
+    if (n_fact > 1){
+      plot(fa_temp$loadings[,1], fa_temp$loadings[,2],
+           xlab = "1", ylab = "2", xlim = c(-1, 1), ylim = c(-1, 1),
+           main = paste0("first two factors ", rotation))
+      text(fa_temp$loadings[,1] - 0.00, fa_temp$loadings[,2] + 0.20,
+           colnames(data_temp), col = "cornflowerblue")
+      abline(h = 0, v = 0)
+    }
+  }
+}
+
+# specify rotations
+fa_rotations = list("none", "varimax", "promax", "oblimin")
+
+
+# chocolate
+get_factor_analysis_exploratory(data_choc, fa_rotations)
+
+
+# pasta
+get_factor_analysis_exploratory(data_pasta, fa_rotations)
+
+
+# ground beef
+get_factor_analysis_exploratory(data_grouf, fa_rotations)
+
+```
+
+
 
 
 
