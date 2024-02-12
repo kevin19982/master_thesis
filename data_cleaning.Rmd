@@ -803,8 +803,18 @@ get_factor_analysis_exploratory(data_grouf, fa_rotations)
 
 ```{r regression}
 # regression analysis
+reg_1 <- lm(environmental_consciousness_indicator ~ country + age + education + av_income + occupation + gender,
+            data = data_choc)
+summary(reg_1)
 
 
+
+# try single choice-variables
+data_choc_test <- data_choc %>% subset(CHO_S1 == 1 | CHO_S1 == 2)
+
+reg_test <- glm(environmental_consciousness_indicator ~ as.factor(country) + age + education + occupation + gender, data = data_choc_test)
+
+summary(reg_test)
 
 
 
@@ -817,8 +827,22 @@ get_factor_analysis_exploratory(data_grouf, fa_rotations)
 ```{r random forest}
 
 # also add a directed acylyic graph at some point... would be a lovely detail
+library(randomForest)
+
+X <- data_choc[,c("age", "education", "av_income", "occupation")]
+Y <- data_choc$environmental_consciousness_indicator
+X[is.na(X)] <- 0
+
+forest_1 <- randomForest(X, Y)
+summary(forest_1)
+
+library(party)
+cforest(environmental_consciousness_indicator ~ country + age + education + 
+          av_income + occupation + gender, data = data_choc,
+        controls=cforest_control(mtry=2, mincriterion=0))
 
 
+getTree(forest_1)
 
 
 ```
