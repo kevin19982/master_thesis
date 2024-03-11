@@ -420,6 +420,8 @@ print(table(data_choc$CHO_S3))
 
 
 # build variable indicating environmental consciousness
+# environmental consciousness indicator does not work well, might look at it
+# again later
 build_env_cons_var <- function(dataset, product){
   # create column for result
   dataset["environmental_consciousness_indicator"] <- rep(NA, dim(dataset)[1])
@@ -443,23 +445,23 @@ build_env_cons_var <- function(dataset, product){
     select(matches(paste0(product, "_S[5]")))
   
   
-  # check
-  print("data subsets:")
-  print(product)
-  print(colnames(dataset_choice_same_price))
-  print(colnames(dataset_choice_cn_more_expensive))
-  print(colnames(dataset_choice_cn_more_expensive_extreme))
-  print(colnames(dataset_choice_cn_less_expensive))
-  print(colnames(dataset_choice_cn_less_expensive_extreme))
-  print("")
+  # # check
+  # print("data subsets:")
+  # print(product)
+  # print(colnames(dataset_choice_same_price))
+  # print(colnames(dataset_choice_cn_more_expensive))
+  # print(colnames(dataset_choice_cn_more_expensive_extreme))
+  # print(colnames(dataset_choice_cn_less_expensive))
+  # print(colnames(dataset_choice_cn_less_expensive_extreme))
+  # print("")
   
   
   
 
   # recode variables to match the score the particular answer gives
   
-  print(paste0("same price before ", product, ":"))
-  print(lapply(dataset_choice_same_price, table))
+  # print(paste0("same price before ", product, ":"))
+  # print(lapply(dataset_choice_same_price, table))
   
   
   cols_same_price <- colnames(dataset_choice_same_price)
@@ -467,13 +469,13 @@ build_env_cons_var <- function(dataset, product){
     mutate_at(cols_same_price, funs(recode(., '1' = -1, '2' = 1, '3' = 0, 
                                            .default = NaN)))
   
-  print(paste0("same price after ", product, ":"))
-  print(lapply(dataset_choice_same_price, table))
-  
-  
-  
-  print(paste0("cn more expensive before ", product, ":"))
-  print(lapply(dataset_choice_cn_more_expensive, table))
+  # print(paste0("same price after ", product, ":"))
+  # print(lapply(dataset_choice_same_price, table))
+  # 
+  # 
+  # 
+  # print(paste0("cn more expensive before ", product, ":"))
+  # print(lapply(dataset_choice_cn_more_expensive, table))
   
   
   
@@ -484,12 +486,12 @@ build_env_cons_var <- function(dataset, product){
   
   
   
-  print(paste0("cn more expensive after ", product, ":"))
-  print(lapply(dataset_choice_cn_more_expensive, table))
-  
-  
-  print(paste0("cn more expensive extreme before ", product, ":"))
-  print(lapply(dataset_choice_cn_more_expensive_extreme, table))
+  # print(paste0("cn more expensive after ", product, ":"))
+  # print(lapply(dataset_choice_cn_more_expensive, table))
+  # 
+  # 
+  # print(paste0("cn more expensive extreme before ", product, ":"))
+  # print(lapply(dataset_choice_cn_more_expensive_extreme, table))
   
   
   
@@ -502,12 +504,12 @@ build_env_cons_var <- function(dataset, product){
                                                           .default = NaN))) 
   
     
-  print(paste0("cn more expensive extreme after ", product, ":"))
-  print(lapply(dataset_choice_cn_more_expensive_extreme, table))
-  
-  
-  print(paste0("cn less expensive before ", product, ":"))
-  print(lapply(dataset_choice_cn_less_expensive, table))
+  # print(paste0("cn more expensive extreme after ", product, ":"))
+  # print(lapply(dataset_choice_cn_more_expensive_extreme, table))
+  # 
+  # 
+  # print(paste0("cn less expensive before ", product, ":"))
+  # print(lapply(dataset_choice_cn_less_expensive, table))
   
   
   
@@ -517,12 +519,12 @@ build_env_cons_var <- function(dataset, product){
                                                   '3' = 0, .default = NaN)))
   
       
-  print(paste0("cn less expensive after ", product, ":"))
-  print(lapply(dataset_choice_cn_less_expensive, table))
-  
-  
-  print(paste0("cn less expensive extreme before ", product, ":"))
-  print(lapply(dataset_choice_cn_less_expensive_extreme, table))
+  # print(paste0("cn less expensive after ", product, ":"))
+  # print(lapply(dataset_choice_cn_less_expensive, table))
+  # 
+  # 
+  # print(paste0("cn less expensive extreme before ", product, ":"))
+  # print(lapply(dataset_choice_cn_less_expensive_extreme, table))
   
   
   cols_cn_less_expensive_extreme <- 
@@ -533,10 +535,10 @@ build_env_cons_var <- function(dataset, product){
                                                    '3' = 0, .default = NaN)))
   
   
-  print(paste0("cn less expensive extreme after ", product, ":"))
-  print(lapply(dataset_choice_cn_less_expensive_extreme, table))
-  print("")
-  print("=====================================================================")
+  # print(paste0("cn less expensive extreme after ", product, ":"))
+  # print(lapply(dataset_choice_cn_less_expensive_extreme, table))
+  # print("")
+  # print("=====================================================================")
   
   # calculate indicator
   dataset["environmental_consciousness_indicator"] = 
@@ -570,6 +572,9 @@ data_grouf <- build_env_cons_var(data_grouf, "GB")
 
 
 ```{r visualize distributions}
+
+# not needed for current approach of the analysis
+
 # histograms of environmental consciousness indicator by dataset
 # chocolate
 hist(data_choc$environmental_consciousness_indicator, col = "cornflowerblue",
@@ -600,6 +605,9 @@ hist(data_grouf$environmental_consciousness_indicator, col = "cornflowerblue",
 
 
 ```{r factor analysis}
+
+# automated approach within next code cell
+
 # check whether similar choices were made
 
 # answers already recoded to have the same direction (recode_vars-function)
@@ -801,11 +809,47 @@ get_factor_analysis_exploratory(data_grouf, fa_rotations)
 
 
 
+
+```{r multinomial logit model}
+library(nnet)
+
+data_choc$CHO_S2 <- as.factor(data_choc$CHO_S2)
+data_choc$CHO_S2_releveled <- relevel(data_choc$CHO_S2, ref = 2)
+
+mlm_1 <- multinom(CHO_S2_releveled ~ age + as.factor(education),
+                    data = data_choc)
+
+summary(mlm_1)
+
+z <- summary(mlm_1)$coefficients/summary(mlm_1)$standard.errors
+
+p <- (1 - pnorm(abs(z), 0, 1)) * 2
+p
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ```{r regression}
 # regression analysis
 reg_1 <- lm(environmental_consciousness_indicator ~ country + age + education + av_income + occupation + gender,
             data = data_choc)
-summary(reg_1)
+print(summary(reg_1))
 
 
 
@@ -814,7 +858,7 @@ data_choc_test <- data_choc %>% subset(CHO_S1 == 1 | CHO_S1 == 2)
 
 reg_test <- glm(environmental_consciousness_indicator ~ as.factor(country) + age + education + occupation + gender, data = data_choc_test)
 
-summary(reg_test)
+print(summary(reg_test))
 
 
 
@@ -830,14 +874,14 @@ summary(reg_test)
 library(randomForest)
 
 X <- data_choc[,c("age", "education", "av_income", "occupation")]
-Y <- data_choc$environmental_consciousness_indicator
+Y <- data_choc$CHO_S2
 X[is.na(X)] <- 0
 
 forest_1 <- randomForest(X, Y)
 summary(forest_1)
 
 library(party)
-cforest(environmental_consciousness_indicator ~ country + age + education + 
+cforest(CHO_S2 ~ country + age + education + 
           av_income + occupation + gender, data = data_choc,
         controls=cforest_control(mtry=2, mincriterion=0))
 
