@@ -474,11 +474,47 @@ plot(data_cluster_clusters)
 
 ```
 
+```{r recoding variables to get them into the right format}
+# recoding variables and labeling
+recode_vars <- function(dataset_choice, variables){
+  dataset_choice <- dataset_choice %>%
+    mutate_at(variables, funs(recode(., '1' = 2, '2' = 1, '3' = 3, 
+                                     .default = NaN)))
+  return(dataset_choice)
+}
+
+
+# copy of dataset
+data_recoded <- data_clean
+
+
+# check distribution of one variable for comparison
+print("CHO_S3 before recoding:")
+print(table(data_recoded$CHO_S3))
+print("")
+
+
+
+# recode dataset
+data_recoded <- recode_vars(data_recoded, c("CHO_S3", "CHO_S5", "CHO_S7", "CHO_S8", 
+                                      "CHO_S9", "PA_S3", "PA_S5", "PA_S7", 
+                                      "PA_S8", "PA_S9", "GB_S3", "GB_S5", 
+                                      "GB_S7", "GB_S8", "GB_S9"))
+
+
+# check distribution for one variable after recoding
+print("CHO_S3 after recoding:")
+print(table(data_recoded$CHO_S3))
+
+
+```
+
+
 
 
 ```{r transform data to long format for panel data logit regression}
 # transform data to long format
-data_lf <- data_clean %>% gather(GB_S1, GB_S2, GB_S3, GB_S4, GB_S5, GB_S6,
+data_lf <- data_recoded %>% gather(GB_S1, GB_S2, GB_S3, GB_S4, GB_S5, GB_S6,
                                  GB_S7, GB_S8, GB_S9, PA_S1, PA_S2, PA_S3,
                                  PA_S4, PA_S5, PA_S6, PA_S7, PA_S8, PA_S9,
                                  CHO_S1, CHO_S2, CHO_S3, CHO_S4, CHO_S5,
@@ -488,77 +524,13 @@ data_lf <- data_clean %>% gather(GB_S1, GB_S2, GB_S3, GB_S4, GB_S5, GB_S6,
 
 # check results
 print(paste0("Expected number of rows: ", 
-             length(unique(data_clean$lfdn)) * (3*9)))
+             length(unique(data_recoded$lfdn)) * (3*9)))
 print(paste0("Actual number of rows: ", nrow(data_lf)))
 
 
 
 
 ```
-
-
-
-
-
-
-
-
-
-
-
-
-```{r create objects}
-# 3 different data sets for chocolate, pasta and ground beef
-# chocolate
-data_choc <- subset(data_clean, purchase_CHO == 1)
-# pasta
-data_pasta <- subset(data_clean, purchase_PA == 1)
-# ground beef
-data_grouf <- subset(data_clean, purchase_GB == 1)
-
-print(paste0("number of observations chocolate: ", dim(data_choc)[1]))
-print(paste0("number of observations pasta: ", dim(data_pasta)[1]))
-print(paste0("number of observations ground beef: ", dim(data_grouf)[1]))
-
-#print("")
-print(paste0("share of participants not buying chocolate: ", 
-             round((dim(data)[1] - dim(data_choc)[1]) / dim(data)[1], 4) 
-             * 100, "%"))
-print(paste0("share of participants not buying pasta: ", 
-             round((dim(data)[1] - dim(data_pasta)[1]) / dim(data)[1], 4)
-             * 100, "%"))
-print(paste0("share of participants not buying ground beef: ", 
-             round((dim(data)[1] - dim(data_grouf)[1]) / dim(data)[1], 4)
-             * 100, "%"))
-
-
-
-```
-There can be models run separately for each of the datasets regarding the
-product choices as only those that bought a certain product were given question
-about said product. Pasta keeps the most observations as only about 15% of 
-participants do not buy pasta, hence, it might be the best dataset for 
-data hungry algorithms like neural nets.
-
-
-
-
-```{r filter variables for each dataset}
-# choice-variables do not need to be kept for other products... or perhaps
-# they do have an influence, but in this case, "-77" needs to be recoded
-data_choc <- data_choc %>% select(!contains("PA_") & !contains("GB_"))
-print(paste0("number of variables chocolate: ", dim(data_choc)[2]))
-# expect 35 variables
-
-data_pasta <- data_pasta %>% select(!contains("CHO_") & !contains("GB_"))
-print(paste0("number of variables pasta: ", dim(data_pasta)[2]))
-
-data_grouf <- data_grouf %>% select(!contains("PA_") & !contains("CHO_"))
-print(paste0("number of variables ground beef: ", dim(data_grouf)[2]))
-
-```
-
-
 
 
 
@@ -570,30 +542,353 @@ na_perc <- function(dataset){
   for (i in 1:dim(dataset)[2]){
     na_s[i, 2] <- round(sum(is.na(dataset[,i])) / dim(dataset)[1], 4) * 100 
   }
+  na_s <- na_s[order(na_s$NA_freq, decreasing = TRUE),]
+  colnames(na_s) <- c("variable", "na_percantage")
   return(na_s)
 }
 
 
-# print results
-# the table displays the relative frequency of NA's for each variable
-# na-frequencies chocolate dataset
-na_perc(data_choc)
-
-```
-
-```{r check na-frequency - pasta}
-# na-frequencies pasta dataset
-na_perc(data_pasta)
-
 ```
 
 
 
-```{r check na-frequency - ground beef}
-# na-frequencies ground beef dataset
-na_perc(data_grouf)
+```{r check na-frequency long-format data}
+# na-frequencies long-format dataset
+na_perc(data_lf)
 
 ```
+final_comment has a lot of NA's as expected, which is fine in this case, as the
+variable will not be used for the model comparison.
+decision also has a lot of NA's which is not surprising as it includes all 
+decision that were by construction not made by certain participants (e.g.
+someone expressing that they do not buy chocolate will have automatically NA's
+for all choices regarding chocolate). In this case the best way to deal with
+these NA's is to throw them out either way, as they were no meant to be 
+observations in the first place. Imputation is not a good strategy here, as
+someone who does no buy chocolate could be very different from individuals who 
+do, hence, using information from other individuals for an educated guess might
+be biased.
+Other variables have little amoutn of NA's.
+
+
+```{r check NAs overall}
+print(paste0("NA percantage for decision: ", 
+            na_perc(data_lf %>% subset(select = decision))[2], "%"))
+print(paste0("NA percantage in any row: ", 
+             round(sum(!complete.cases(data_lf %>% 
+                                         subset(select = -c(final_comment)))) / 
+                     nrow(data_lf) * 100, 2), "%"))
+
+
+
+```
+
+```{r prepare data for model comparison}
+# number of rows before removing NA's
+print(paste0("number of rows before cleaning: ", nrow(data_lf)))
+data_lf <- data_lf %>% subset(select = -c(final_comment))
+data_lf_test <- data_lf %>% subset(!is.na(decision))
+print(paste0("number of rows, when only deleting rows that have NA's for the 
+choice variable: ", nrow(data_lf_test)))
+data_lf <- data_lf[complete.cases(data_lf),]
+print(paste0("number of rows, after cleaning: ", nrow(data_lf)))
+
+na_perc(data_lf)
+
+
+```
+Only 18 rows have NA's left when deleting the rows that have NA's for the
+decision variable, hence these rows will also be removed in this case.
+
+
+
+```{r adding prices and product type as variables}
+# create new variables for price
+data_lf$price_cn <- rep(0, nrow(data_lf))
+data_lf$price_no_cn <- rep(0, nrow(data_lf))
+data_lf$product_type <- rep(0, nrow(data_lf))
+
+
+# # maybe a function for later
+# map_prices <- function(dataframe, variable, price_list, price_variable,
+#                        choice_variable){
+#   dataframe[price_variable][dataframe$choice_variable %>% contains("_S1")
+#                             | contains("_S4") | contains("_S5")]
+# }
+
+
+# add prices
+# ground beef carbon neutral
+data_lf$price_cn <- ifelse(data_lf$choice %in% 
+                             c("GB_S1", "GB_S4", "GB_S5"), 
+                           3.49,
+                           ifelse(data_lf$choice %in% 
+                                    c("GB_S2", "GB_S6", "GB_S8"), 
+                                  4.99, 
+                                  ifelse(data_lf$choice %in% 
+                                           c("GB_S3", "GB_S7", "GB_S9"), 
+                                         6.59,
+                                         data_lf$price_cn)))
+# pasta carbon neutral
+data_lf$price_cn <- ifelse(data_lf$choice %in% 
+                             c("PA_S1", "PA_S4", "PA_S5"), 
+                           1.09,
+                           ifelse(data_lf$choice %in% 
+                                    c("PA_S2", "PA_S6", "PA_S8"), 
+                                  1.79, 
+                                  ifelse(data_lf$choice %in%
+                                           c("PA_S3", "PA_S7", "PA_S9"), 
+                                         2.49,
+                                         data_lf$price_cn)))
+# chocolate carbon neutral
+data_lf$price_cn <- ifelse(data_lf$choice %in% 
+                             c("CHO_S1", "CHO_S4", "CHO_S5"), 
+                           0.79,
+                           ifelse(data_lf$choice %in% 
+                                    c("CHO_S2", "CHO_S6", "CHO_S8"), 1.29, 
+                                  ifelse(data_lf$choice %in%
+                                           c("CHO_S3", "CHO_S7", "CHO_S9"), 
+                                             1.79,
+                                             data_lf$price_cn)))
+
+# ground beef not carbon neutral
+data_lf$price_no_cn <- ifelse(data_lf$choice %in% 
+                                c("GB_S1", "GB_S2", "GB_S3"), 
+                              3.49,
+                              ifelse(data_lf$choice %in% 
+                                       c("GB_S4", "GB_S6", "GB_S7"), 
+                                     4.99, 
+                                     ifelse(data_lf$choice %in%
+                                              c("GB_S5", "GB_S8", "GB_S9"),
+                                                6.59,
+                                                data_lf$price_no_cn)))
+# pasta not carbon neutral
+data_lf$price_no_cn <- ifelse(data_lf$choice %in% 
+                                c("PA_S1", "PA_S2", "PA_S3"), 
+                              1.09,
+                              ifelse(data_lf$choice %in% 
+                                       c("PA_S4", "PA_S6", "PA_S7"), 
+                                     1.79, 
+                                     ifelse(data_lf$choice %in%
+                                              c("PA_S5", "PA_S8", "PA_S9"),
+                                            2.49,
+                                            data_lf$price_no_cn)))
+# chocolate not carbon_neutral
+data_lf$price_no_cn <- ifelse(data_lf$choice %in% 
+                                c("CHO_S1", "CHO_S2", "CHO_S3"), 
+                              0.79,
+                              ifelse(data_lf$choice %in% 
+                                       c("CHO_S4", "CHO_S6", "CHO_S7"), 
+                                     1.29, 
+                                     ifelse(data_lf$choice %in%
+                                              c("CHO_S5", "CHO_S8", "CHO_S9"),
+                                                1.79,
+                                                data_lf$price_no_cn)))
+
+
+# add product category
+library(stringr)
+data_lf$product_type <- ifelse(data_lf$choice %>% 
+                                 str_detect("GB") == TRUE, 
+                               "Ground beef",
+                               ifelse(data_lf$choice %>% 
+                                        str_detect("PA") == TRUE, 
+                                      "Pasta", "Chocolate"))
+
+
+
+
+
+
+```
+
+
+
+
+Let's fit a mixed effects bionmial logistic regression instead
+```{r only keep active decisions}
+dim(data_lf)
+data_model <- data_lf[data_lf$decision != 3,]
+dim(data_model)
+
+
+
+```
+
+```{r export prepared data frame}
+# export prepared dataframe for additional analyses in python
+data_model <- data_model %>% subset(select = c(lfdn, purchase_CHO, purchase_PA,
+                                               purchase_GB, rank_GB, rank_CHO,
+                                               rank_CHEESE, rank_WHEAT,
+                                               rank_TOM, age, gender, country,
+                                               education, occupation, av_income,
+                                               environment, Country_Name,
+                                               Generation, av_income_factorized,
+                                               choice, decision, price_cn,
+                                               price_no_cn, product_type))
+
+
+# check distribution of outcome-variable
+print(table(data_model$decision))
+
+
+
+# split data into train and test set
+sample_size <- floor(0.75 * nrow(data_model))
+
+set.seed(100)
+train_idx <- sample(seq(1, nrow(data_model), 1), size = sample_size)
+
+train <- data_model[train_idx, ]
+test <- data_model[-train_idx, ]
+
+
+
+# create more balanced data
+# upsample training set
+library(caret)
+
+set.seed(100)
+
+
+
+
+# this neeeeeeeds rework
+train_upsampled <- upSample(x = train %>% subset(select = -c(decision)),
+                            y = as.factor(train$decision),
+                            yname = "decision")
+
+
+
+
+
+
+
+# check results
+table(train_upsampled$decision)
+
+
+
+
+
+# export data
+write.csv(data_model, "data_model.csv")
+
+# export train and test sets
+write.csv(train, "train_model.csv")
+write.csv(test, "test_model.csv")
+write.csv(train_upsampled, "train_model_upsampled.csv")
+
+
+
+```
+
+
+
+
+
+
+```{r general logsitic regression}
+library(mlogit)
+
+# first a logisitc regression in general, later cross-validated prediction
+# accuracy for model comparisons
+model_1 <- mlogit(decision ~ gender + education + occupation + av_income,
+                  data = data_lf)
+summary(model_1)
+
+
+library(mclogit)
+
+model_1 <- mblogit(factor(decision) ~ gender + education + occupation + av_income,
+                   random = ~ 1|lfdn,
+                   data = data_lf)
+summary(model_1)
+
+
+
+library(nnet)
+
+model_1 <- multinom(decision ~ gender + education + occupation + av_income + 
+                      + price_cn + price_no_cn + product_type + (1 | lfdn),
+                    data = data_lf)
+summary(model_1)
+
+
+z <- summary(model_1)$coefficients/summary(model_1)$standard.errors
+
+p <- (1 - pnorm(abs(z), 0, 1)) * 2
+p
+
+
+
+
+library(lme4)
+library(glmmTMB)
+model_2 <- glmmTMB(as.factor(decision) ~ gender + education + occupation + 
+                     av_income + price_cn + price_no_cn + product_type + 
+                     (1 | lfdn),
+                 data = data_lf)
+summary(model_2)
+
+
+
+
+library(mixcat)
+
+
+
+library(brms)
+
+
+
+
+
+
+
+
+
+library(lme4)
+fit_1 <- glmer(decision ~ gender + education + occupation + 
+                 av_income_factorized + price_cn + price_no_cn + product_type + 
+                 environment + (1 | lfdn),
+               data = train)
+
+summary(fit_1)
+
+preds <- round(predict(fit_1, newdata = test))
+
+sum(test$decision != preds) / nrow(test)
+
+
+library(ModelMetrics)
+library(ConfusionTableR)
+
+
+preds_fc <- factor(preds, labels = c("no_cn", "cn"))
+truth_fc <- factor(test$decision, labels = c("no_cn", "cn"))
+
+
+ConfusionTableR::binary_visualiseR(train_labels = preds_fc,
+                                   truth_labels = truth_fc,
+                                   class_label1 = "No carbon neutral label",
+                                   class_label2 = "Carbon neutral label",
+                                   custom_title = "Logistic regression confusion matrix")
+
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
 
 
 
