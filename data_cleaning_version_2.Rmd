@@ -748,36 +748,84 @@ test <- data_model[-train_idx, ]
 # upsample training set
 library(caret)
 
+# set seed, so results are reproducable
 set.seed(100)
 
-
-
-
-# this neeeeeeeds rework
+# create dataframe with upsampled data
 train_upsampled <- upSample(x = train %>% subset(select = -c(decision)),
                             y = as.factor(train$decision),
                             yname = "decision")
 
-
-
-
-
-
-
 # check results
 table(train_upsampled$decision)
+
+
+# downsample training set
+train_downsampled <- downSample(x = train %>% subset(select = -c(decision)),
+                                y = as.factor(train$decision),
+                                yname = "decision")
+
+# check results
+table(train_downsampled$decision)
+
+
+
+# ROSE
+library(ROSE)
+
+set.seed(100)
+
+train_2 <- train
+train_2$choice <- as.factor(train_2$choice)
+train_2$product_type <- as.factor(train_2$product_type)
+
+train_rose <- ROSE(as.factor(decision) ~ lfdn + purchase_CHO + purchase_PA +
+                   purchase_GB +  rank_GB + rank_CHO + rank_CHEESE +
+                   rank_WHEAT + rank_TOM + age + as.numeric(gender) +
+                   as.numeric(country) + as.numeric(education) + 
+                   as.numeric(occupation) + av_income + 
+                   as.numeric(environment) + as.numeric(Country_Name) +
+                   as.numeric(Generation) + as.numeric(av_income_factorized) +
+                   as.numeric(choice) + price_cn + price_no_cn +
+                   as.numeric(product_type), 
+                   data = train_2)$data  # despite the name, no roses were trained in the process
+# variables only transformed in the formula for the computation, hence 
+# resulting dataframe keeps the assigned labels
+table(train_rose$decision)
 
 
 
 
 
 # export data
-write.csv(data_model, "data_model.csv")
+#write.csv(data_model, "data_model.csv")
 
 # export train and test sets
-write.csv(train, "train_model.csv")
-write.csv(test, "test_model.csv")
-write.csv(train_upsampled, "train_model_upsampled.csv")
+# does not need to be repeated every time the script runs
+#write.csv(train, "train_model.csv")
+#write.csv(test, "test_model.csv")
+#write.csv(train_upsampled, "train_model_upsampled.csv")
+#write.csv(train_downsampled, "train_model_downsampled.csv")
+#write.csv(train_rose, "train_model_rose.csv")
+
+
+
+```
+
+
+
+
+```{r contingency table}
+# check that every combination of outcome and expression of regressors is in 
+# the data
+var_list <- c("gender", "education", "occupation", "av_income_factorized", "price_cn", "price_no_cn", "product_type", "environment", "country")
+
+for (variable in var_list){
+  print("variable: ")
+  print(xtabs(~decision + variable, data = train))
+  print_empty_line()
+}
+
 
 
 
@@ -789,74 +837,164 @@ write.csv(train_upsampled, "train_model_upsampled.csv")
 
 
 ```{r general logsitic regression}
-library(mlogit)
+# library(mlogit)
+# 
+# # first a logisitc regression in general, later cross-validated prediction
+# # accuracy for model comparisons
+# model_1 <- mlogit(decision ~ gender + education + occupation + av_income,
+#                   data = data_lf)
+# summary(model_1)
+# 
+# 
+# library(mclogit)
+# 
+# model_1 <- mblogit(factor(decision) ~ gender + education + occupation + av_income,
+#                    random = ~ 1|lfdn,
+#                    data = data_lf)
+# summary(model_1)
+# 
+# 
+# 
+# library(nnet)
+# 
+# model_1 <- multinom(decision ~ gender + education + occupation + av_income + 
+#                       + price_cn + price_no_cn + product_type + (1 | lfdn),
+#                     data = data_lf)
+# summary(model_1)
+# 
+# 
+# z <- summary(model_1)$coefficients/summary(model_1)$standard.errors
+# 
+# p <- (1 - pnorm(abs(z), 0, 1)) * 2
+# p
+# 
+# 
+# 
+# 
+# library(lme4)
+# library(glmmTMB)
+# model_2 <- glmmTMB(as.factor(decision) ~ gender + education + occupation + 
+#                      av_income + price_cn + price_no_cn + product_type + 
+#                      (1 | lfdn),
+#                  data = data_lf)
+# summary(model_2)
+# 
+# 
+# 
+# 
+# library(mixcat)
+# 
+# 
+# 
+# library(brms)
+# 
 
-# first a logisitc regression in general, later cross-validated prediction
-# accuracy for model comparisons
-model_1 <- mlogit(decision ~ gender + education + occupation + av_income,
-                  data = data_lf)
-summary(model_1)
-
-
-library(mclogit)
-
-model_1 <- mblogit(factor(decision) ~ gender + education + occupation + av_income,
-                   random = ~ 1|lfdn,
-                   data = data_lf)
-summary(model_1)
 
 
 
-library(nnet)
 
-model_1 <- multinom(decision ~ gender + education + occupation + av_income + 
-                      + price_cn + price_no_cn + product_type + (1 | lfdn),
-                    data = data_lf)
-summary(model_1)
+# !!! needs work !!!
 
 
-z <- summary(model_1)$coefficients/summary(model_1)$standard.errors
 
-p <- (1 - pnorm(abs(z), 0, 1)) * 2
-p
+
+# recode decision-variable
+train$decision <- ifelse(train$decision == 2, 1, 0)
+train_upsampled$decision <- ifelse(train_upsampled$decision == 2, 1, 0)
+train_downsampled$decision <- ifelse(train_downsampled$decision == 2, 1, 0)
+train_rose$decision <- ifelse(train_rose$decision == 2, 1, 0)
+test$decision <- ifelse(test$decision == 2, 1, 0)
+
+
 
 
 
 
 library(lme4)
-library(glmmTMB)
-model_2 <- glmmTMB(as.factor(decision) ~ gender + education + occupation + 
-                     av_income + price_cn + price_no_cn + product_type + 
-                     (1 | lfdn),
-                 data = data_lf)
-summary(model_2)
+
+# null model
+fit_0 <- glmer(as.factor(decsion) ~ 1,
+               data = train, family = "binomial")
 
 
 
-
-library(mixcat)
-
-
-
-library(brms)
-
-
-
-
-
-
-
-
-
-library(lme4)
-fit_1 <- glmer(decision ~ gender + education + occupation + 
+# full model
+fit_1 <- glmer(as.factor(decision) ~ gender + education + occupation + 
                  av_income_factorized + price_cn + price_no_cn + product_type + 
-                 environment + (1 | lfdn),
-               data = train)
+                 environment + as.factor(country) + (1 | lfdn),
+               data = train, family = "binomial")
 
 summary(fit_1)
 
-preds <- round(predict(fit_1, newdata = test))
+
+# odds ratios
+print("Odds ratios:")
+print(exp(coefficients(fit_1)))
+
+
+
+
+# confidence intervals
+print("Confidence intervals of log odds:")
+print(confint.default(fit_1))
+# .default uses standard errors for the confidence intervals
+
+print("Confidence intervals for odds ratios:")
+print(exp(confint.default(fit_1)))
+
+
+
+
+# wald test for overall effect of categorical regressors
+library(aod)
+
+wald.test(b = coef(fit_1), Sigma = vcov(fit_1), Terms = 1:2)  
+# terms specifies which coefficients from the model output to add to the wald test
+
+
+
+# can get probs for different expression of regressors
+# e.g. gender
+# does this make sense in the presence of random effects?
+
+
+
+
+# compare null model and full model
+# difference of deviance
+with(fit_1, null.deviance - deviance)
+
+# degrees of freedom
+with(fit_1, df.null - df.residual)
+
+# p-value
+with(fit_1, pchisq(null.deviance - deviance, df.null - df.residual, lower.tail = False))
+
+# log likelihood
+logLik(fit_1)
+
+
+
+
+# anova
+anova(fit_1, test = "Chisq")
+
+
+
+
+
+fit_1 <- glmer(as.factor(decision) ~ gender + education + occupation + 
+                 av_income_factorized + price_cn + price_no_cn + product_type + 
+                 environment + as.factor(country) + (1 | lfdn),
+               data = train, family = "binomial")
+
+
+
+
+# predictions
+preds <- round(predict(fit_1, newdata = test, type = "response"))
+# type = "response" returns probabilties instead of log odds
+
 
 sum(test$decision != preds) / nrow(test)
 
@@ -865,7 +1003,7 @@ library(ModelMetrics)
 library(ConfusionTableR)
 
 
-preds_fc <- factor(preds, labels = c("no_cn", "cn"))
+preds_fc <- as.factor(preds)
 truth_fc <- factor(test$decision, labels = c("no_cn", "cn"))
 
 
@@ -878,11 +1016,185 @@ ConfusionTableR::binary_visualiseR(train_labels = preds_fc,
 
 
 
+
+
+
+
+
+
+
+
+
+
+estimate_predict_plot_log_reg <- function(dataset_train, dataset_test, formula,
+                                          outcome_variable,
+                                          cm_title = "Confusion matrix"){
+  # fit logistic regression
+  fit_temp <- glmer(formula, data = dataset_train, family = "binomial")
+  print(summary(fit_temp))
+  
+  # predictions
+  predictions_temp <- round(predict(fit_temp, newdata = dataset_test,
+                                    type = "response"))
+  print(paste0("Prediction accuracy: ", 
+               round((1 - sum(dataset_test[, outcome_variable] != 
+                                predictions_temp) / nrow(dataset_test)) * 100, 
+                     2), "%"))
+  
+  print("Were here")
+  print(unique(predictions_temp))
+  # confusion matrix
+  predictions_temp_fc <- factor(predictions_temp, 
+                                labels = c("no_cn", "cn"))
+  truth_temp_fc <- factor(dataset_test[, outcome_variable][[1]], 
+                          labels = c("no_cn", "cn"))
+  ConfusionTableR::binary_visualiseR(train_labels = predictions_temp_fc,
+                                     truth_labels = truth_temp_fc,
+                                     class_label1 = "No carbon neutral label",
+                                     class_label2 = "Carbon neutral label",
+                                     custom_title = cm_title)
+  
+  
+  # create object to output
+  output = list("model" = fit_temp, "predictions" = predictions_temp)
+  
+  return(output)
+}
+
+
+
+
+
+
+formula_1 <- as.factor(decision) ~ gender + education + occupation + 
+  av_income_factorized + price_cn + price_no_cn + product_type + environment + 
+  (1 | lfdn)  # not fast cars
+
+log_reg_1 <- estimate_predict_plot_log_reg(train, test, formula_1,
+                                           "decision", 
+                                           "Confusion matrix - Original data")
+
+log_reg_2 <- estimate_predict_plot_log_reg(train_upsampled, test, formula_1,
+                                           "decision", 
+                                           "Confusion matrix - Original data")
+
+log_reg_3 <- estimate_predict_plot_log_reg(train_downsampled, test, formula_1,
+                                           "decision", 
+                                           "Confusion matrix - Original data")
+
+log_reg_4 <- estimate_predict_plot_log_reg(train_rose, test, formula_1,
+                                           "decision", 
+                                           "Confusion matrix - Original data")
+
+
+
+
+
+
 ```
 
 
 
 
+
+```{r logistic regression assumption check}
+# assumption 1: binary outcome variable
+print("Assumption 1:")
+print(unique(train$decision))
+# outcome-variable was binarized before, this serves as sanity check
+print_empty_line()
+
+
+
+# assumption 2: little multicolinearity between regressors
+library(regclass)
+
+print("Assumption 2:")
+print(VIF(fit_1))
+print_empty_line()
+# (full rank assumption)
+
+
+
+
+# assumption 3: linear relationship of log odds to independet variables
+library(ggplot2)
+library(sjPlot)
+
+
+plot_model(fit_1, type = "pred", terms = c("gender", "education", "occupation", "av_income_factorized", "price_cn", "price_no_cn", "product_type", "environment", "country"))
+print_empty_line()
+
+
+
+
+# assumption 4: sufficient sample size
+var_list <- c("gender", "education", "occupation", "av_income_factorized", "price_cn", "price_no_cn", "product_type", "environment", "country")
+print("Assumption 4:")
+print(paste0("recommended minimum of observations: ", 100 + length(var_list) * 50))
+print(paste0("number of observations: ", nrow(train)))
+print_empty_line()
+
+
+
+
+# assumption 5: no extreme outliers
+library(car)
+
+print("Assumption 5:")
+print(cookd(fit_1))
+print_empty_line()
+
+
+
+
+
+# assumption 6: independence of observations
+print("Assumption 6:")
+print("Dependence between observations, because of panel data structure, combatted by including random effects in the model.")
+
+
+
+
+
+
+
+# additional random effects assumptions
+# assumption 7-1: strict exogeneity of regressors and idiosyncratic errors
+
+
+
+
+# assumption 7-2: strict exogeneity of regressors and individual-specific effects
+
+
+
+
+
+
+
+
+# assumption 8-1: variance of idiosyncratic errors does not depend on the actual expression of the regressors
+
+
+
+
+
+
+
+# assumption 8-2: variance of individual-specific effects does not depend on the actual expression of the regressors
+
+
+
+
+
+
+
+
+
+
+
+```
 
 
 
