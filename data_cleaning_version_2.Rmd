@@ -474,6 +474,28 @@ plot(data_cluster_clusters)
 
 ```
 
+
+```{r pca}
+# check how similar participants are
+
+
+
+
+
+
+
+
+
+
+
+
+```
+
+
+
+
+
+
 ```{r recoding variables to get them into the right format}
 # recoding variables and labeling
 recode_vars <- function(dataset_choice, variables){
@@ -528,6 +550,15 @@ print(paste0("Expected number of rows: ",
 print(paste0("Actual number of rows: ", nrow(data_lf)))
 
 
+
+
+```
+
+
+```{r map of NAs}
+library(Amelia)
+
+missmap(data_lf)
 
 
 ```
@@ -818,14 +849,19 @@ table(train_rose$decision)
 ```{r contingency table}
 # check that every combination of outcome and expression of regressors is in 
 # the data
-var_list <- c("gender", "education", "occupation", "av_income_factorized", "price_cn", "price_no_cn", "product_type", "environment", "country")
+var_list <- c("gender", "education", "occupation", "av_income_factorized", 
+              "price_cn", "price_no_cn", "product_type", "environment", 
+              "country", "age")
 
 for (variable in var_list){
+  formula_temp <- paste0("~ decision + ", variable)
+  #print(formula_temp)
   print("variable: ")
-  print(xtabs(~decision + variable, data = train))
+  print(xtabs(formula_temp, data = train))
   print_empty_line()
 }
-
+# some variable expressions might be problematic, because they do not have a 
+# lot of cases
 
 
 
@@ -837,6 +873,8 @@ for (variable in var_list){
 
 
 ```{r general logsitic regression}
+
+# ----
 # library(mlogit)
 # 
 # # first a logisitc regression in general, later cross-validated prediction
@@ -896,7 +934,7 @@ for (variable in var_list){
 # !!! needs work !!!
 
 
-
+# ----
 
 # recode decision-variable
 train$decision <- ifelse(train$decision == 2, 1, 0)
@@ -905,38 +943,100 @@ train_downsampled$decision <- ifelse(train_downsampled$decision == 2, 1, 0)
 train_rose$decision <- ifelse(train_rose$decision == 2, 1, 0)
 test$decision <- ifelse(test$decision == 2, 1, 0)
 
+# factorize variables that should be factorized but are not factorized yet
+# (move this step upwards later)
+train$decision <- as.factor(train$decision)
+test$decision <- as.factor(test$decision)
+train$country <- as.factor(train$country)
+test$country <- as.factor(test$country)
+
+
+# check how variables are coded
+# helper-function
+factor_check <- function(dataset){
+  data_temp <- dataset[, sapply(dataset, is.factor)]
+  return(data_temp)
+}
+
+
+check_coding <- function(dataset, variable_list){
+  data_temp <- dataset[, variable_list]
+  data_temp <- factor_check(data_temp)
+  
+  for(var in colnames(data_temp)){
+    print(paste0(var, ":"))
+    print(contrasts(data_temp[, var][[1]]))
+    print_empty_line()
+  }
+}
+
+print("Coding of variables: ")
+check_coding(train, var_list)
+
+
+
+
+# # check whether individual indicator should be included as fixed effects or
+# # random effects
+# # Hausman test
+# model_me <- glmer(decision ~ gender + education +
+#                     occupation + av_income_factorized +
+#                     price_cn + price_no_cn + product_type + environment + age + (1 | lfdn),
+#                   data = train,
+#                   family = binomial(link = "logit"))
+# 
+# model_fe <- glm(decision ~ gender + education + occupation +
+#                   av_income_factorized + price_cn +
+#                   price_no_cn + product_type +
+#                   environment + age + lfdn,
+#                 data = train,
+#                 family = binomial(link = "logit"))
 
 
 
 
 
+
+
+
+# models for explanation
 library(lme4)
 
 # null model
-fit_0 <- glmer(as.factor(decsion) ~ 1,
-               data = train, family = "binomial")
+fit_0 <- glmer(decision ~ 1 + (1 | lfdn),
+               data = train, family = "binomial" (link = "logit"))
 
+summary(fit_0)
 
 
 # full model
-fit_1 <- glmer(as.factor(decision) ~ gender + education + occupation + 
+fit_1 <- glmer(decision ~ gender + education + occupation + 
                  av_income_factorized + price_cn + price_no_cn + product_type + 
-                 environment + as.factor(country) + (1 | lfdn),
+                 environment + age + (1 | lfdn),
                data = train, family = "binomial")
 
 summary(fit_1)
 
 
+# model fit using McFadden R^2
+# library(pscl)
+# 
+# pR2(fit_1)
+
+
+
+
 # odds ratios
 print("Odds ratios:")
-print(exp(coefficients(fit_1)))
+print(exp(fixef(fit_1)))
+print_empty_line()
 
 
 
 
 # confidence intervals
 print("Confidence intervals of log odds:")
-print(confint.default(fit_1))
+print(confint(fit_1))
 # .default uses standard errors for the confidence intervals
 
 print("Confidence intervals for odds ratios:")
@@ -958,17 +1058,37 @@ wald.test(b = coef(fit_1), Sigma = vcov(fit_1), Terms = 1:2)
 # does this make sense in the presence of random effects?
 
 
+data_gender <- with(train, data.frame(gender = rep(unique(train$gender), length.out = 10000),
+                                      education = rep(unique(train$education), length.out = 10000),
+                                      occupation = rep(unique(train$occupation), length.out = 10000),
+                                      av_income_factorized = rep(unique(train$av_income_factorized), length.out = 10000),
+                                      price_cn = rep(unique(train$price_cn), length.out = 10000),
+                                      price_no_cn = rep(unique(train$price_no_cn), length.out = 10000),
+                                      product_type = rep(unique(train$product_type), length.out = 10000),
+                                      environment = rep(unique(train$environment), length.out = 10000),
+                                      country = rep(c(46, 70), length.out = 10000)))  
+# 46 and 70 are country codes of costa rica and germany
+
+# shuffle columns
+data_gender <- sapply(data_gender, function(x) sample(x))
+
+
+
+
+
+
+
 
 
 # compare null model and full model
 # difference of deviance
-with(fit_1, null.deviance - deviance)
-
-# degrees of freedom
-with(fit_1, df.null - df.residual)
-
-# p-value
-with(fit_1, pchisq(null.deviance - deviance, df.null - df.residual, lower.tail = False))
+# with(fit_1, null.deviance - deviance)
+# 
+# # degrees of freedom
+# with(fit_1, df.null - df.residual)
+# 
+# # p-value
+# with(fit_1, pchisq(null.deviance - deviance, df.null - df.residual, lower.tail = False))
 
 # log likelihood
 logLik(fit_1)
@@ -982,21 +1102,14 @@ anova(fit_1, test = "Chisq")
 
 
 
-
-fit_1 <- glmer(as.factor(decision) ~ gender + education + occupation + 
-                 av_income_factorized + price_cn + price_no_cn + product_type + 
-                 environment + as.factor(country) + (1 | lfdn),
-               data = train, family = "binomial")
-
-
-
-
 # predictions
 preds <- round(predict(fit_1, newdata = test, type = "response"))
 # type = "response" returns probabilties instead of log odds
 
 
-sum(test$decision != preds) / nrow(test)
+print(paste0("Accuracy: ",
+             round((1 - (sum(test$decision != preds) / nrow(test))) * 100, 2),
+             "%"))
 
 
 library(ModelMetrics)
@@ -1004,14 +1117,95 @@ library(ConfusionTableR)
 
 
 preds_fc <- as.factor(preds)
-truth_fc <- factor(test$decision, labels = c("no_cn", "cn"))
+truth_fc <- test$decision
 
 
-ConfusionTableR::binary_visualiseR(train_labels = preds_fc,
+cm_1 <- ConfusionTableR::binary_visualiseR(train_labels = preds_fc,
                                    truth_labels = truth_fc,
                                    class_label1 = "No carbon neutral label",
                                    class_label2 = "Carbon neutral label",
                                    custom_title = "Logistic regression confusion matrix")
+print(cm_1)
+
+
+
+
+
+# ROC-curve (potentially not sensible given the imbalance of the data)
+library(ROCR)
+
+
+pr <- prediction(preds, test$decision)
+prf <- performance(pr, measure = "tpr", x.measure = "fpr")
+plot(prf)
+
+auc <- performance(pr, measure = "auc")
+auc <- auc@y.values[[1]]
+auc
+
+
+# ----
+
+
+# estimate_predict_plot_log_reg <- function(dataset_train, dataset_test, formula,
+#                                           outcome_variable,
+#                                           cm_title = "Confusion matrix"){
+#   # fit logistic regression
+#   fit_temp <- glmer(formula, data = dataset_train, family = "binomial")
+#   print(summary(fit_temp))
+#   
+#   # predictions
+#   predictions_temp <- round(predict(fit_temp, newdata = dataset_test,
+#                                     type = "response"))
+#   print(paste0("Prediction accuracy: ", 
+#                round((1 - sum(dataset_test[, outcome_variable] != 
+#                                 predictions_temp) / nrow(dataset_test)) * 100, 
+#                      2), "%"))
+#   
+#   print("Were here")
+#   print(unique(predictions_temp))
+#   # confusion matrix
+#   predictions_temp_fc <- factor(predictions_temp, 
+#                                 labels = c("no_cn", "cn"))
+#   truth_temp_fc <- factor(dataset_test[, outcome_variable][[1]], 
+#                           labels = c("no_cn", "cn"))
+#   ConfusionTableR::binary_visualiseR(train_labels = predictions_temp_fc,
+#                                      truth_labels = truth_temp_fc,
+#                                      class_label1 = "No carbon neutral label",
+#                                      class_label2 = "Carbon neutral label",
+#                                      custom_title = cm_title)
+#   
+#   
+#   # create object to output
+#   output = list("model" = fit_temp, "predictions" = predictions_temp)
+#   
+#   return(output)
+# }
+# 
+# 
+# 
+# 
+# 
+# 
+# formula_1 <- as.factor(decision) ~ gender + education + occupation + 
+#   av_income_factorized + price_cn + price_no_cn + product_type + environment + 
+#   (1 | lfdn)  # not fast cars
+# 
+# log_reg_1 <- estimate_predict_plot_log_reg(train, test, formula_1,
+#                                            "decision", 
+#                                            "Confusion matrix - Original data")
+# 
+# log_reg_2 <- estimate_predict_plot_log_reg(train_upsampled, test, formula_1,
+#                                            "decision", 
+#                                            "Confusion matrix - Original data")
+# 
+# log_reg_3 <- estimate_predict_plot_log_reg(train_downsampled, test, formula_1,
+#                                            "decision", 
+#                                            "Confusion matrix - Original data")
+# 
+# log_reg_4 <- estimate_predict_plot_log_reg(train_rose, test, formula_1,
+#                                            "decision", 
+#                                            "Confusion matrix - Original data")
 
 
 
@@ -1021,70 +1215,47 @@ ConfusionTableR::binary_visualiseR(train_labels = preds_fc,
 
 
 
+# models for prediction
+# gotta check if random effects can be included here aswell
+library(glmnet)
+library(glmmLasso)
+library(caret)
+
+# glmnet
+# prepare data for glmnet
+X_train <- train
+y_train <- train[, "decision"]
+X_test <- test
+y_test <- test[, "decision"]
+
+fit_glmnet <- glmnet(X_train, y_train, family = "binomial")
+plot(fit_glmnet)
+
+
+predictions_glmnet <- predict(fit_glmnet, X_test, 
+                              type = "response")
+
+
+formula <- "as.numeric(decision) ~ as.numeric(gender) + as.numeric(education) + as.numeric(occupation) + as.numeric(av_income_factorized) + as.numeric(price_cn) + as.numeric(price_no_cn) + as.numeric(product_type) + as.numeric(environment) + as.numeric(age)"
+
+X_train_model <- predict(caret::dummyVars(formula, X_train, fullRank = TRUE, sep = " "), X_train)
+X_test_model <- predict(caret::dummyVars(formula, X_test, fullRank = TRUE, sep = " "), X_test)
+
+cvglm_1 <- cv.glmnet(x = X_train_model, y = y_train,
+                     nfolds = 5, family = "binomial")
+# problem of missing values in the model matrix which arises from missing
+# observations of combinations of certain variables probably, need to deal
+# with them before
 
 
 
 
 
-estimate_predict_plot_log_reg <- function(dataset_train, dataset_test, formula,
-                                          outcome_variable,
-                                          cm_title = "Confusion matrix"){
-  # fit logistic regression
-  fit_temp <- glmer(formula, data = dataset_train, family = "binomial")
-  print(summary(fit_temp))
-  
-  # predictions
-  predictions_temp <- round(predict(fit_temp, newdata = dataset_test,
-                                    type = "response"))
-  print(paste0("Prediction accuracy: ", 
-               round((1 - sum(dataset_test[, outcome_variable] != 
-                                predictions_temp) / nrow(dataset_test)) * 100, 
-                     2), "%"))
-  
-  print("Were here")
-  print(unique(predictions_temp))
-  # confusion matrix
-  predictions_temp_fc <- factor(predictions_temp, 
-                                labels = c("no_cn", "cn"))
-  truth_temp_fc <- factor(dataset_test[, outcome_variable][[1]], 
-                          labels = c("no_cn", "cn"))
-  ConfusionTableR::binary_visualiseR(train_labels = predictions_temp_fc,
-                                     truth_labels = truth_temp_fc,
-                                     class_label1 = "No carbon neutral label",
-                                     class_label2 = "Carbon neutral label",
-                                     custom_title = cm_title)
-  
-  
-  # create object to output
-  output = list("model" = fit_temp, "predictions" = predictions_temp)
-  
-  return(output)
-}
+# glmmlasso
 
 
 
 
-
-
-formula_1 <- as.factor(decision) ~ gender + education + occupation + 
-  av_income_factorized + price_cn + price_no_cn + product_type + environment + 
-  (1 | lfdn)  # not fast cars
-
-log_reg_1 <- estimate_predict_plot_log_reg(train, test, formula_1,
-                                           "decision", 
-                                           "Confusion matrix - Original data")
-
-log_reg_2 <- estimate_predict_plot_log_reg(train_upsampled, test, formula_1,
-                                           "decision", 
-                                           "Confusion matrix - Original data")
-
-log_reg_3 <- estimate_predict_plot_log_reg(train_downsampled, test, formula_1,
-                                           "decision", 
-                                           "Confusion matrix - Original data")
-
-log_reg_4 <- estimate_predict_plot_log_reg(train_rose, test, formula_1,
-                                           "decision", 
-                                           "Confusion matrix - Original data")
 
 
 
@@ -1107,10 +1278,10 @@ print_empty_line()
 
 
 # assumption 2: little multicolinearity between regressors
-library(regclass)
+library(car)
 
 print("Assumption 2:")
-print(VIF(fit_1))
+print(car::vif(fit_1))
 print_empty_line()
 # (full rank assumption)
 
@@ -1122,14 +1293,15 @@ library(ggplot2)
 library(sjPlot)
 
 
-plot_model(fit_1, type = "pred", terms = c("gender", "education", "occupation", "av_income_factorized", "price_cn", "price_no_cn", "product_type", "environment", "country"))
+# plot_model(fit_1, type = "pred", terms = c("gender", "education", "occupation", "av_income_factorized", "price_cn", "price_no_cn", "product_type", "environment", "country"))
+plot_model(fit_1)
+# not sure whether this depcits what im trying to find out here
 print_empty_line()
 
 
 
 
 # assumption 4: sufficient sample size
-var_list <- c("gender", "education", "occupation", "av_income_factorized", "price_cn", "price_no_cn", "product_type", "environment", "country")
 print("Assumption 4:")
 print(paste0("recommended minimum of observations: ", 100 + length(var_list) * 50))
 print(paste0("number of observations: ", nrow(train)))
@@ -1142,7 +1314,9 @@ print_empty_line()
 library(car)
 
 print("Assumption 5:")
-print(cookd(fit_1))
+print(cooks.distance(fit_1))
+plot(cooks.distance(fit_1))
+# not sure whether this predicts what im trying to find out
 print_empty_line()
 
 
@@ -1196,6 +1370,96 @@ print("Dependence between observations, because of panel data structure, combatt
 
 ```
 
+
+```{r more assumption tests}
+# linearity
+# for every numeric regressor?
+train %>%
+  mutate(comp_res = fixef(fit_1)["age"] * age + residuals(fit_1, type = "working")) %>%
+  ggplot(aes(x = age, y = comp_res)) +
+  geom_point() +
+  geom_smooth(color = "violetred", method = "lm", linetype = 2, se = FALSE) +
+  geom_smooth(se = FALSE) +
+  theme_bw()
+# check again
+# if non-linear realtionship adding the variable squared might help
+# maybe add age^2
+
+
+
+# Independence
+
+
+
+
+
+
+# no multicollinearity
+# VIFs
+
+
+
+
+
+
+
+# no outlier effects
+# DFFITS
+train_dffits <- train %>%
+  mutate(dffits = dffits(fit_1))
+
+train_dffits %>%
+  mutate(obs_number = row_number(),
+         large = ifelse(abs(dffits) > 2 * sqrt(length(coef(fit_1)) / nobs(fit_1)),
+                        "red", "black")) %>%
+  ggplot(aes(obs_number, dffits, color = large)) +
+  geom_point() +
+  geom_hline(yintercept = c(-1, 1) * 2 * sqrt(length(coef(fit_1)) / nobs(fit_1)), color = "red") +
+  scale_color_identity() +
+  theme_bw()
+
+
+
+# DFBETAS
+train_dfbetas <- dfbetas(fit_1) %>%
+  as.data.frame() %>%
+  rename_with(~ paste0("dfb_", .x)) %>%
+  cbind(train)
+
+train_dfbetas %>%
+  mutate(obs_number = row_number()) %>%
+  pivot_longer(cols = starts_with("dfb")) %>%
+  mutate(large = ifelse(abs(value) > 2 / sqrt(nobs(fit_1)),
+                        "red", "black")) %>%
+  ggplot(aes(obs_number, value, color = large)) +
+  geom_point() +
+  geom_hline(yintercept = c(-1, 1) * 2 / sqrt(nobs(fit_1)), color = "red") +
+  facet_wrap(~ name) +
+  scale_color_identity() +
+  theme_bw()
+
+
+
+
+
+
+# fully represented data matrix
+# contingency tables
+# multiple way contingency-cells
+# e.g.
+with(train, table(gender, education, occupation))
+# if empty cells: collapse categories, or drop variables (collecting more data not feasible in this case)
+
+
+
+
+
+
+
+
+
+
+```
 
 
 
