@@ -1,0 +1,2571 @@
+---
+title: "master_thesis_data_preparation"
+output: html_notebook
+---
+
+```{r set up}
+# clean up environment
+rm(list = ls())
+
+
+# load packages
+library(readxl)
+library(dplyr)
+library(usefun)
+library(tidyr)
+library(ggplot2)
+library(plyr)
+
+
+# load in data
+data <- read_excel("data/Data_CarbonNeutral_compact.xlsx") 
+
+
+
+
+
+```
+
+
+Now it is time to filter the data for variables that are relevant for the
+analysis, as there are a lot of variables that describe technical things
+regarding the questionnaire, which do not provide information for the question
+at hand.
+```{r filter for relevant variables}
+# create a list of variables that are relevant for the analysis
+#colnames(data)
+var_list <- c("lfdn", "purchase_CHO", "purchase_PA", "purchase_GB",
+                 "GB_S1", "GB_S2", "GB_S3", "GB_S4", "GB_S5", "GB_S6", "GB_S7", 
+                 "GB_S8", "GB_S9", "PA_S1", "PA_S2", "PA_S3", "PA_S4", "PA_S5", 
+                 "PA_S6", "PA_S7", "PA_S8", "PA_S9", "CHO_S1", "CHO_S2", 
+                 "CHO_S3", "CHO_S4", "CHO_S5", "CHO_S6", "CHO_S7", "CHO_S8", 
+                 "CHO_S9", "rank_GB", "rank_CHO", "rank_CHEESE", "rank_WHEAT",
+                 "rank_TOM", "age", "gender", "country", "education", 
+                 "occupation", "av_income", "environment", "Country_Name",
+                 "Generation", "final_comment", "browser", "datetime",
+                 "date_of_last_access", "date_of_first_mail", "Date_Start",
+                 "Date_End", "Time_Start", "Time_End", "Completion_Time")
+
+# subset dataframe
+data_clean <- data[,var_list]
+
+# check how many variables are left
+print(paste0("number of variables in the data: ",dim(data)[2], 
+             ", number variables for further steps of the analysis: ", 
+             dim(data_clean)[2]))
+
+```
+
+
+```{r recode na}
+# replace non-answers with NA's
+data_clean[data_clean == -66 | data_clean == -77 | data_clean == -99] <- NA
+
+```
+
+
+
+
+```{r select observations based on completion time}
+# select observations that worked on the questionnaire for a reasonable time
+#data_clean$Completion_Time
+
+
+# function to calculate completion times, technically they are in the given
+# data set, but don't account for transitions between dates
+time_passed  <- function(dataset){
+  # initiate column for completion time in seconds
+  dataset$Completion_Time_sec = rep(NA, dim(dataset)[1])
+  
+  # calculate difference between Time_End and Time_Start in seconds, add seconds
+  # for each day passed between start and finish time
+  for (i in 1:dim(dataset)[1]){
+    dataset$Completion_Time_sec = (dataset$Time_End - dataset$Time_Start) +
+      (dataset$Date_End - dataset$Date_Start)
+  }
+  
+  # make sure the column is numeric
+  dataset$Completion_Time_sec <- as.numeric(dataset$Completion_Time_sec)
+  
+  return(dataset)
+}
+
+
+# apply function
+data_clean <- time_passed(data_clean)
+
+
+# check results
+#data_clean$Completion_Time_sec[1:10]
+# table(data_clean$Completion_Time_sec)
+print(paste0("minimum time taken: ", min(data_clean$Completion_Time_sec),
+             " seconds"))
+
+
+
+# pre-select observations based on completion time
+# long completion times will not be excluded, as participants might have been
+# distracted but faithfully finished the questionnaire later
+# very short completion times will be excluded, as participants might have not
+# payed attention
+# the approach might be greedy, as data-hungry methods incentivize keeping as
+# many observations as possible, the author accounted for this by deep 
+# philosophical contemplation of one's motives and biases... and a coin flip
+
+# check dimension before filtering
+print(paste0("number of observations before filtering: ", dim(data_clean)[1]))
+
+# filter data set
+data_clean <- data_clean[data_clean$Completion_Time_sec >= 120,]
+# minimum time: 120 seconds, which seems reasonable when accounting for
+# different questionnaire constellations, reading speeds, and decision making
+
+# check dimensions after filtering
+print(paste0("number of observations after filtering: ", dim(data_clean)[1]))
+
+```
+
+
+
+```{r factorize and label observations}
+# gender
+data_clean$gender <- factor(data_clean$gender,
+                            levels = c(1, 2, 5, 6),
+                            labels = c("Female", "Male", "Non-binary",
+                                       "Other"))
+
+
+# maybe factorize GB_S1 - GB_S9, PA_S1 - PA_S9, and CHO_S1 - CHO_S9?
+# not yet, some of the variables do not have the right polarity at this point
+
+
+
+
+# Country_Name already factorized?
+data_clean$Country_Name <- as.factor(data_clean$Country_Name)
+
+
+
+# education
+data_clean$education <- factor(data_clean$education,
+                               levels = c(1, 2, 3, 4, 5, 6, 7),
+                               labels = c("Secondary School General", 
+                                          "Secondary School", 
+                                          "Secondary School Academic", 
+                                          "Bachelor's Degree", 
+                                          "Master's Degree", 
+                                          "Ph.D. or higher", 
+                                          "None"))
+
+
+
+# occupation
+data_clean$occupation <- 
+  factor(data_clean$occupation, 
+         levels = c(1, 2, 3, 4, 5, 6, 7), 
+         labels = c("Student Highschool", 
+                    "Student University", 
+                    "In education or vocational training", 
+                    "Employed", 
+                    "Retired", 
+                    "Looking for employment", 
+                    "Other"))
+
+
+
+# maybe factorize environment?
+data_clean$environment <- factor(data_clean$environment,
+                                 levels = c(1, 2),
+                                 labels = c("Priority", "Not priority"))
+
+
+
+# factorize Generation if the variable is used additionaly to/instead of age
+# might make sense because of the unequal age distribution
+data_clean$Generation <- as.factor(data_clean$Generation)
+
+
+
+
+# maybe factorize average income? ...as the possible answers were categories
+# make new variable for that for now
+data_clean$av_income_factorized <- factor(data_clean$av_income,
+                                          levels = c(1, 2, 3, 4, 5, 6),
+                                          labels = c("<1000", 
+                                                     "1000-1500", 
+                                                     "1500-3500", 
+                                                     "3500-5000", 
+                                                     ">5000", 
+                                                     "No answer"))  
+# this does not have clear distinctions between levels, e.g. "1500" could 
+# belong to the second or the third level, depending on interpretation
+
+
+
+
+
+
+
+```
+
+
+
+
+
+
+```{r recoding outcome variables to get them into the right format}
+# recoding outcome so choosing the product with the eco-label always has the
+# same coding
+recode_vars <- function(dataset_choice, variables){
+  dataset_choice <- dataset_choice %>%
+    mutate_at(variables, funs(recode(., '1' = 2, '2' = 1, '3' = 3, 
+                                     .default = NaN)))
+  return(dataset_choice)
+}
+
+
+# copy of dataset
+data_recoded <- data_clean
+
+
+# check distribution of one variable for comparison
+print("CHO_S3 before recoding:")
+print(table(data_recoded$CHO_S3))
+print("")
+
+
+
+# recode dataset
+data_recoded <- recode_vars(data_recoded, c("CHO_S3", "CHO_S5", "CHO_S7", "CHO_S8", 
+                                      "CHO_S9", "PA_S3", "PA_S5", "PA_S7", 
+                                      "PA_S8", "PA_S9", "GB_S3", "GB_S5", 
+                                      "GB_S7", "GB_S8", "GB_S9"))
+
+
+# check distribution for one variable after recoding
+print("CHO_S3 after recoding:")
+print(table(data_recoded$CHO_S3))
+
+
+```
+
+
+
+
+
+
+
+```{r worldmap}
+# show map of where the answers are from (Costa Rica should be as visible as
+# possible, since there were relatively a lot of observations from there, but
+# it's a small land)
+unique(data_recoded$country)
+unique(data_recoded$Country_Name)
+
+
+# get dataframe with countries and number of participants
+participants_origin <- count(data_recoded, "Country_Name")
+participants_origin
+
+# adjust country names to the ones ggplot uses
+participants_origin$Country_Name[participants_origin$Country_Name == "United Kingdom"] <- "UK"
+participants_origin$Country_Name[participants_origin$Country_Name == "United States"] <- "USA"
+
+
+# filter world data
+world_data <- map_data("world") %>% filter(region != "Antarctica") %>% fortify
+# no one from Antarctica participated... I'm shocked as well
+
+# print map
+ggplot() +
+  geom_map(data = world_data, map = world_data,
+           aes(long, lat, map_id = region), fill = "white", colour = "black",
+           size = 0.5) +
+  geom_map(data = participants_origin, map = world_data,
+           aes(fill = freq, map_id = Country_Name), colour = "black") +
+  scale_fill_continuous(low = "cornflowerblue", high = "midnightblue") +
+  xlab("longitudinal") + ylab("lateral") +
+  theme_bw()
+
+```
+
+
+
+```{r worldmap zoom in}
+# check country names
+#sort(unique(world_data$region))
+
+# countries for European map (not only European countries)
+europe_country_list = c("Albania, Andorra", "Austria", "Belarus", "Belgium", 
+                        "Bosnia and Herzegovina", "Bulgaria", "Croatia", 
+                        "Czech Republic", "Denmark", "Estonia", "Finland", 
+                        "France", "Germany", "Greece", "Hungary", "Iceland",
+                        "Italy", "Latvia", "Liechtenstein", "Lithuania", 
+                        "Luxembourg", "Malta", "Moldova", "Monaco", 
+                        "Montenegro", "Netherlands", "North Macedonia", 
+                        "Norway", "Poland", "Portugal", "Romania", "Russia", 
+                        "San Marino", "Serbia", "Slovakia", "Slovenia", "Spain", 
+                        "Sweden", "Switzerland", "Ukraine", "UK", 
+                        "Turkey", "Cyprus", "Syria", "Lebanon", "Israel", 
+                        "Jordan", "Morocco", "Tunesia", "Lybia", "Algeria", 
+                        "Egypt", "Georgia", "Azerbaijan", "Iraq")
+europe <- world_data[world_data$region == europe_country_list,]
+
+
+# print map
+map_europe <- ggplot() +
+  geom_map(data = europe, map = world_data,
+           aes(long, lat, map_id = region), fill = "white", colour = "black",
+           size = 0.5) + 
+  geom_map(data = participants_origin, map = world_data, 
+           aes(fill = freq, map_id = Country_Name), colour = "black") +
+  scale_fill_continuous(low = "cornflowerblue", high = "midnightblue") +
+  xlab("longitudinal") + ylab("lateral") +
+  theme_bw() + xlim(-10,40) + ylim(35,70)
+print(map_europe)
+
+
+# countries for north- and middle-american map (not only north-and middle-
+# american countries)
+america_nm_country_list <- c("Canada", "Greendland", "Mexico", "USA",
+                             "Antigua", "Bahamas", "Barbados", "Cuba", 
+                             "Dominica", "The Dominican Republic", "Grenada", 
+                             "Haiti", "Saint Kitts", "Saint Lucia", 
+                             "Saint Vincent", "Trinidad",
+                             "Costa Rica", "El Salvador", "Guatemala", 
+                             "Honduras", "Nicaragua", "Panama",
+                             "Colombia", "Venezuela", "Guyana", "Suriname")
+america_nm <- world_data[world_data$region == america_nm_country_list,]
+# it is also doable with only zooming in and out, but that would require more
+# trial and error with the limits
+
+# print map
+map_america_nm <- ggplot() +
+  geom_map(data = america_nm, map = world_data,
+           aes(long, lat, map_id = region), fill = "white", colour = "black",
+           size = 0.5) + 
+  geom_map(data = participants_origin, map = world_data, 
+           aes(fill = freq, map_id = Country_Name), colour = "black") +
+  scale_fill_continuous(low = "cornflowerblue", high = "midnightblue") +
+  xlab("longitudinal") + ylab("lateral") +
+  theme_bw() + xlim(-175,-25) + ylim(10, 80)
+print(map_america_nm)
+
+
+# countries for south-american map (not only south-american countries)
+america_s_country_list <- c("Argentina", "Bolivia", "Brazil", "Chile", 
+                            "Colombia", "Eucador", "Guyana", "Paraguay", "Peru", 
+                            "Suriname", "Uruguay", "Venezuela",
+                            "Mexico", "Costa Rica", "El Salvador", "Guatemala", 
+                            "Honduras", "Nicaragua", "Panama")
+america_s <- world_data[world_data$region == america_s_country_list,]
+
+# print map
+map_america_s <- ggplot() +
+  geom_map(data = america_s, map = world_data,
+           aes(long, lat, map_id = region), fill = "white", colour = "black",
+           size = 0.5) + 
+  geom_map(data = participants_origin, map = world_data, 
+           aes(fill = freq, map_id = Country_Name), colour = "black") +
+  scale_fill_continuous(low = "cornflowerblue", high = "midnightblue") +
+  xlab("longitudinal") + ylab("lateral") +
+  theme_bw() + xlim(-105, -20) + ylim(-55,15)
+print(map_america_s)
+
+```
+
+
+
+
+
+```{r plot age distributions, warning = FALSE, message = FALSE}
+#library(scales)
+library(ghibli)
+library(tvthemes)
+
+# check min and max ages
+print(paste0("min age: ", min(data_recoded$age, na.rm = TRUE)))
+print(paste0("max age: ", max(data_recoded$age, na.rm = TRUE)))
+
+
+
+# histogram of age distributions overall
+ggplot(data_recoded, aes(x = age)) +
+  geom_histogram(
+    aes(y = ..density..), 
+    color = "black", 
+    fill = "cornflowerblue") +
+  geom_density(alpha = 0.5, fill = "plum3") +
+  xlab("Age") + ylab("Density") +
+  ggtitle("Age density") +
+  scale_x_continuous(breaks = seq(0, 100, 10), 
+                     limits = c(round_any(min(data_recoded$age, na.rm = TRUE), 
+                                         10, f = floor) - 10, 
+                                round_any(max(data_recoded$age, na.rm = TRUE), 
+                                          10, f = ceiling) + 10)) +
+  scale_y_continuous(breaks = seq(0.0, 0.1, 0.01), limits = c(0.0, 0.07)) +
+  labs(caption = "There is some concentration  \naround 25 years and 55 years,
+       one has to take this into consideration.") +
+  theme_bw()
+
+
+
+# histograms of age by gender distributions
+ggplot(data_recoded,
+       aes(x = age, fill = gender)) +
+  geom_histogram(alpha = 1, 
+                 position = "stack", 
+                 color = "black") +
+  xlab("Age") + ylab("Count") +
+  ggtitle("Age distribution by gender") +
+  scale_x_continuous(breaks = seq(0, 100, 10), 
+                     limits = c(round_any(min(data_recoded$age, na.rm = TRUE), 
+                                         10, f = floor) - 10, 
+                                round_any(max(data_recoded$age, na.rm = TRUE), 
+                                          10, f = ceiling) + 10)) +
+  #coord_flip() +
+  guides(fill = guide_legend(title = "Gender")) +
+  theme_minimal() +
+  #scale_colour_ghibli_d("LaputaMedium", direction = -1) +
+  scale_fill_ghibli_d("LaputaMedium", direction = -1) 
+  #scale_fill_attackOnTitan()
+  
+
+
+# histograms of age distributions for germany and costa rica specifically
+#library(jpeg)
+#cat <- readJPEG("awkward_cat_he_just_like_me_fr.jpg")
+
+
+
+ggplot(data_recoded %>% filter(Country_Name %in% c("Germany", "Costa Rica")),
+       aes(x = age, fill = Country_Name)) +
+  geom_histogram(alpha = 0.5,
+                 position = "identity",
+                 color = "black") +
+  xlab("Age") + ylab("Count") +
+  ggtitle("Age distribution by most prevalent countries in the data") +
+  scale_x_continuous(breaks = seq(0, 100, 10), 
+                     limits = c(round_any(min(data_recoded$age, na.rm = TRUE), 
+                                         10, f = floor) - 10, 
+                                round_any(max(data_recoded$age, na.rm = TRUE), 
+                                          10, f = ceiling) + 10)) +
+  guides(fill = guide_legend(title = "Country")) +
+  theme_minimal() 
+  #scale_fill_attackOnTitan() +
+  #annotation_raster(cat, xmin = 70, xmax = 100, ymin = 40, ymax = 70)
+
+
+
+
+
+
+
+```
+
+
+## Cluster Analysis
+# let's do this one a little later
+```{r cluster analysis}
+# get dataframe of descriptives for cluster analysis
+data_cluster <- data_recoded[, c("age", "gender", "Country_Name", "education",
+                               "occupation", "av_income_factorized")]
+
+
+# one-hot-encode data for cluster normalization
+data_cluster_dummy <- data_cluster %>% select_if(is.factor)
+
+
+library(mltools)
+library(data.table)
+
+data_cluster_dummy_one_hot <- one_hot(as.data.table(data_cluster_dummy))
+
+
+# put dataset together again (a.k.a playing Frankenstein)
+data_cluster_one_hot <- cbind(data_cluster %>% select_if(is.numeric),
+                              data_cluster_dummy_one_hot)
+
+
+
+
+# normalize data for cluster analysis
+data_cluster_one_hot_means <- apply(data_cluster_one_hot, 2, mean, na.rm = TRUE)
+data_cluster_one_hot_sds <- apply(data_cluster_one_hot, 2, sd, na.rm = TRUE)
+data_cluster_normalized <- scale(data_cluster_one_hot, 
+                                 center = data_cluster_one_hot_means,
+                                 scale = data_cluster_one_hot_sds)
+
+
+
+# get rid of NA's
+data_cluster_normalized <- na.omit(data_cluster_normalized)
+
+
+
+
+
+# calculate distances
+data_cluster_distances <- dist(data_cluster_normalized)
+
+
+# hierarchical clustering
+data_cluster_clusters <- hclust(data_cluster_distances)
+
+# visualize results
+plot(data_cluster_clusters)
+## tooooooo many clusters, maybe change approach here
+## do cluster analysis later after factor analysis maybe?
+
+## need to get rid of NA's
+
+
+
+
+
+
+```
+
+
+```{r pca}
+# check how similar participants are
+
+
+
+
+
+
+
+
+
+
+
+
+```
+
+
+
+
+
+
+```{r transform data to long format for panel data logit regression}
+# transform data to long format
+data_lf <- data_recoded %>% gather(GB_S1, GB_S2, GB_S3, GB_S4, GB_S5, GB_S6,
+                                 GB_S7, GB_S8, GB_S9, PA_S1, PA_S2, PA_S3,
+                                 PA_S4, PA_S5, PA_S6, PA_S7, PA_S8, PA_S9,
+                                 CHO_S1, CHO_S2, CHO_S3, CHO_S4, CHO_S5,
+                                 CHO_S6, CHO_S7, CHO_S8, CHO_S9,
+                                 key = "choice", value = "decision")
+
+
+# check results
+print(paste0("Expected number of rows: ", 
+             length(unique(data_recoded$lfdn)) * (3*9)))
+print(paste0("Actual number of rows: ", nrow(data_lf)))
+
+
+
+
+
+# recode decision-variable to 0-1
+data_lf$decision <- ifelse(data_lf$decision == 2, 1, 0)
+
+
+# factorize variables that should be factorized but are not factorized yet
+data_lf$decision <- as.factor(data_lf$decision)
+data_lf$country <- as.factor(data_lf$country)
+print_empty_line()
+print("Datatypes:")
+print(sapply(data_lf, class))
+
+```
+
+
+```{r map of NAs}
+library(Amelia)
+
+# visualize frequency of missing values
+missmap(data_lf)
+
+
+```
+
+
+
+```{r check na-frequency}
+# function to get NA's of a dataframe for each variable
+na_perc <- function(dataset){
+  na_s <- data.frame(colnames(dataset))
+  na_s["NA_freq"] <- rep(NA, dim(dataset)[2])
+  for (i in 1:dim(dataset)[2]){
+    na_s[i, 2] <- round(sum(is.na(dataset[,i])) / dim(dataset)[1], 4) * 100 
+  }
+  na_s <- na_s[order(na_s$NA_freq, decreasing = TRUE),]
+  colnames(na_s) <- c("variable", "na_percantage")
+  return(na_s)
+}
+
+
+```
+
+
+
+```{r check na-frequency long-format data}
+# na-frequencies long-format dataset
+na_perc(data_lf)
+
+```
+final_comment has a lot of NA's as expected, which is fine in this case, as the
+variable will not be used for the model comparison.
+decision also has a lot of NA's which is not surprising as it includes all 
+decision that were by construction not made by certain participants (e.g.
+someone expressing that they do not buy chocolate will have automatically NA's
+for all choices regarding chocolate). In this case the best way to deal with
+these NA's is to throw them out either way, as they were no meant to be 
+observations in the first place. Imputation is not a good strategy here, as
+someone who does no buy chocolate could be very different from individuals who 
+do, hence, using information from other individuals for an educated guess might
+be biased.
+Other variables have little amoutn of NA's.
+
+
+```{r check NAs overall}
+# naive estimate of how many of NA's overall could be traced back to decision
+print(paste0("NA percantage for decision: ", 
+            na_perc(data_lf %>% subset(select = decision))[2], "%"))
+print(paste0("NA percantage in any row: ", 
+             round(sum(!complete.cases(data_lf %>% 
+                                         subset(select = -c(final_comment)))) / 
+                     nrow(data_lf) * 100, 2), "%"))
+
+
+
+```
+
+```{r prepare data for model comparison}
+# number of rows before removing NA's
+print(paste0("number of rows before cleaning: ", nrow(data_lf)))
+data_lf <- data_lf %>% subset(select = -c(final_comment))
+data_lf_test <- data_lf %>% subset(!is.na(decision))
+print(paste0("number of rows, when only deleting rows that have NA's for the 
+choice variable: ", nrow(data_lf_test)))
+data_lf <- data_lf[complete.cases(data_lf),]
+print(paste0("number of rows, after cleaning: ", nrow(data_lf)))
+
+na_perc(data_lf)
+
+
+```
+Only 18 rows have NA's left when deleting the rows that have NA's for the
+decision variable, hence these rows will also be removed in this case.
+
+
+
+```{r adding prices and product type as variables}
+# create new variables for price
+data_lf$price_cn <- rep(0, nrow(data_lf))
+data_lf$price_no_cn <- rep(0, nrow(data_lf))
+data_lf$product_type <- rep(0, nrow(data_lf))
+
+
+# # maybe a function for later
+# map_prices <- function(dataframe, variable, price_list, price_variable,
+#                        choice_variable){
+#   dataframe[price_variable][dataframe$choice_variable %>% contains("_S1")
+#                             | contains("_S4") | contains("_S5")]
+# }
+
+
+# add prices
+# ground beef carbon neutral
+data_lf$price_cn <- ifelse(data_lf$choice %in% 
+                             c("GB_S1", "GB_S4", "GB_S5"), 
+                           3.49,
+                           ifelse(data_lf$choice %in% 
+                                    c("GB_S2", "GB_S6", "GB_S8"), 
+                                  4.99, 
+                                  ifelse(data_lf$choice %in% 
+                                           c("GB_S3", "GB_S7", "GB_S9"), 
+                                         6.59,
+                                         data_lf$price_cn)))
+# pasta carbon neutral
+data_lf$price_cn <- ifelse(data_lf$choice %in% 
+                             c("PA_S1", "PA_S4", "PA_S5"), 
+                           1.09,
+                           ifelse(data_lf$choice %in% 
+                                    c("PA_S2", "PA_S6", "PA_S8"), 
+                                  1.79, 
+                                  ifelse(data_lf$choice %in%
+                                           c("PA_S3", "PA_S7", "PA_S9"), 
+                                         2.49,
+                                         data_lf$price_cn)))
+# chocolate carbon neutral
+data_lf$price_cn <- ifelse(data_lf$choice %in% 
+                             c("CHO_S1", "CHO_S4", "CHO_S5"), 
+                           0.79,
+                           ifelse(data_lf$choice %in% 
+                                    c("CHO_S2", "CHO_S6", "CHO_S8"), 1.29, 
+                                  ifelse(data_lf$choice %in%
+                                           c("CHO_S3", "CHO_S7", "CHO_S9"), 
+                                             1.79,
+                                             data_lf$price_cn)))
+
+# ground beef not carbon neutral
+data_lf$price_no_cn <- ifelse(data_lf$choice %in% 
+                                c("GB_S1", "GB_S2", "GB_S3"), 
+                              3.49,
+                              ifelse(data_lf$choice %in% 
+                                       c("GB_S4", "GB_S6", "GB_S7"), 
+                                     4.99, 
+                                     ifelse(data_lf$choice %in%
+                                              c("GB_S5", "GB_S8", "GB_S9"),
+                                                6.59,
+                                                data_lf$price_no_cn)))
+# pasta not carbon neutral
+data_lf$price_no_cn <- ifelse(data_lf$choice %in% 
+                                c("PA_S1", "PA_S2", "PA_S3"), 
+                              1.09,
+                              ifelse(data_lf$choice %in% 
+                                       c("PA_S4", "PA_S6", "PA_S7"), 
+                                     1.79, 
+                                     ifelse(data_lf$choice %in%
+                                              c("PA_S5", "PA_S8", "PA_S9"),
+                                            2.49,
+                                            data_lf$price_no_cn)))
+# chocolate not carbon_neutral
+data_lf$price_no_cn <- ifelse(data_lf$choice %in% 
+                                c("CHO_S1", "CHO_S2", "CHO_S3"), 
+                              0.79,
+                              ifelse(data_lf$choice %in% 
+                                       c("CHO_S4", "CHO_S6", "CHO_S7"), 
+                                     1.29, 
+                                     ifelse(data_lf$choice %in%
+                                              c("CHO_S5", "CHO_S8", "CHO_S9"),
+                                                1.79,
+                                                data_lf$price_no_cn)))
+
+
+# add product category
+library(stringr)
+data_lf$product_type <- ifelse(data_lf$choice %>% 
+                                 str_detect("GB") == TRUE, 
+                               "Ground beef",
+                               ifelse(data_lf$choice %>% 
+                                        str_detect("PA") == TRUE, 
+                                      "Pasta", "Chocolate"))
+
+
+
+
+
+
+```
+
+
+
+
+Let's fit a mixed effects bionmial logistic regression instead
+```{r only keep active decisions}
+# check outcome-distribution
+print("outcome distribution:")
+print(table(data_lf$decision, useNA = "always"))
+print_empty_line()
+
+# remove observations with outcome "neither" since there are few observations
+# and multinomial logistic regression with random effects is not reliably
+# available in R
+print(paste0("number of observations before removing 'neither': ", 
+             dim(data_lf)))
+data_model <- data_lf[data_lf$decision != 3,]
+print(paste0("number of observations after removing 'neither': ",
+             dim(data_model)))
+
+
+
+```
+
+
+
+```{r check representativeness of data}
+# check that every combination of outcome and expression of regressors is in 
+# the data
+var_list <- c("gender", "education", "occupation", "av_income_factorized", 
+              "price_cn", "price_no_cn", "product_type", "environment", 
+              "country", "age")
+
+for (variable in var_list){
+  formula_temp <- paste0("~ decision + ", variable)
+  #print(formula_temp)
+  print("variable: ")
+  print(xtabs(formula_temp, data = data_model))
+  print_empty_line()
+}
+# most regressors are fine but some expressions of the country-variable are
+# have one-sided outcomes, some models (e.g. logistic regression) will not
+# be able to estimate probabilities for these variable-expressions
+# age also does also have one-sided distributions for some ages, this should
+# be fine however, since age is continuous 
+
+
+# write function to get expressions with one-sided outcome-distributions
+target_acquired <- function(dataset, variable){
+  expression_list = c()
+  formula_temp <- paste0("~decision + ", variable)
+  xtab_temp <- xtabs(formula_temp, data = dataset)
+  colnames_temp <- colnames(xtab_temp)
+  for (name in colnames_temp){
+    expression_temp <- xtab_temp[, name]
+    if (0 %in% expression_temp){
+      expression_list = c(expression_list, name)
+    }
+  }
+  return(expression_list)
+}
+
+# countries
+countries_one_sided <- target_acquired(data_model, "country")
+print(countries_one_sided)
+
+# ages
+ages_one_sided <- target_acquired(data_model, "age")
+print(ages_one_sided)
+
+
+# subset data based on retrieved expressions
+print(dim(data_model))
+data_model <- data_model %>% subset(!(country %in% countries_one_sided))
+print(dim(data_model))
+# check result
+nrow(data_lf) == (nrow(data_model) + 
+                    nrow(data_lf[data_lf$country %in% countries_one_sided,]))
+# worked
+
+# let's also remove ages with one-sided outcome-distributions just to be sure
+data_model <- data_model %>% subset(!(age %in% ages_one_sided))
+print(dim(data_model))
+nrow(data_lf) == (nrow(data_model) + 
+                    nrow(data_lf[data_lf$country %in% countries_one_sided,]) + 
+                    nrow(data_lf[data_lf$age %in% ages_one_sided,]))
+# worked
+
+
+```
+
+
+
+
+```{r train test split}
+# subset dataframe for variables that are relevant for further analyses
+data_model <- data_model %>% subset(select = c(lfdn, purchase_CHO, purchase_PA,
+                                               purchase_GB, rank_GB, rank_CHO,
+                                               rank_CHEESE, rank_WHEAT,
+                                               rank_TOM, age, gender, country,
+                                               education, occupation, av_income,
+                                               environment, Country_Name,
+                                               Generation, av_income_factorized,
+                                               choice, decision, price_cn,
+                                               price_no_cn, product_type))
+
+
+# split data into training and test set by including certain individuals in the
+# test set only to get a better estimate of the generalization error
+individuals <- unique(data_model$lfdn)
+
+# determine fractions for train and test set, I decided to include about 15%
+# of individuals in the test set
+train_size <- floor(0.85 * length(individuals))
+test_size <- (length(individuals) - train_size)
+
+# sample individuals for training and test set
+# make sure the results can be repeated the same way
+set.seed(100)
+
+train_idx <- sample(individuals, train_size, replace = FALSE)
+test_idx <- individuals[which(!individuals %in% train_idx)]
+
+# test whether it worked correctly
+count_dub = 0
+for (i in train_idx){
+  if (i %in% test_idx){
+    count_dub = count_dub + 1
+  }
+}
+print(paste0("number of dublicates: ", count_dub))
+print(paste0("unique idx train set: ", length(unique(train_idx))))
+print(paste0("unique idx test set: ", length(unique(test_idx))))
+# worked
+
+# split data into train and test set
+train <- data_model[data_model$lfdn %in% train_idx, ]
+test <- data_model[data_model$lfdn %in% test_idx, ]
+# train might not contain exactly 85% of observations since the split was made
+# based on individuals, hence, train has 85% of individuals, not necessary 85%
+# of observations
+
+# check if outcome distributions are approximately similar
+print("outcome-distributions for training and test set (relative frequency:")
+print(round(table(train$decision) / nrow(train), 2))
+print(round(table(test$decision) / nrow(test), 2))
+# distributions are similar
+
+
+# # split data into train and test set based on observations overall 
+# sample_size <- floor(0.75 * nrow(data_model))
+# 
+# set.seed(100)
+# train_idx <- sample(seq(1, nrow(data_model), 1), size = sample_size)
+# 
+# train_alter <- data_model[train_idx, ]
+# test_alter <- data_model[-train_idx, ]
+
+
+
+# check distribution of outcome-variable
+print("Distribution of outcome variable in training set:")
+print(table(train$decision))
+
+# create more balanced training sets
+# option 1: upsample training set
+library(caret)
+
+# create dataframe with upsampled data
+set.seed(100)  # next command samples
+train_upsampled <- upSample(x = train %>% subset(select = -c(decision)),
+                            y = as.factor(train$decision),
+                            yname = "decision")
+
+# check results
+print("Distribution of outcome variable in upsampled training set:")
+table(train_upsampled$decision)
+
+
+# option 2: downsample training set
+set.seed(100)  # just to make sure
+train_downsampled <- downSample(x = train %>% subset(select = -c(decision)),
+                                y = as.factor(train$decision),
+                                yname = "decision")
+
+# check results
+print("Distribution of outcome variable in downsampled training set:")
+table(train_downsampled$decision)
+
+
+# option 3: ROSE
+library(ROSE)
+
+# preparation for ROSE
+train_2 <- train
+train_2$choice <- as.factor(train_2$choice)
+train_2$product_type <- as.factor(train_2$product_type)
+
+set.seed(100)
+train_rose <- ROSE(as.factor(decision) ~ lfdn + purchase_CHO + purchase_PA +
+                   purchase_GB +  rank_GB + rank_CHO + rank_CHEESE +
+                   rank_WHEAT + rank_TOM + age + as.numeric(gender) +
+                   as.numeric(country) + as.numeric(education) + 
+                   as.numeric(occupation) + av_income + 
+                   as.numeric(environment) + as.numeric(Country_Name) +
+                   as.numeric(Generation) + as.numeric(av_income_factorized) +
+                   as.numeric(choice) + price_cn + price_no_cn +
+                   as.numeric(product_type), 
+                   data = train_2)$data  
+# variables only transformed in the formula for the computation, hence the 
+# resulting dataframe keeps the assigned labels
+# despite the name, no roses were trained in the process 
+print("Distribution of outcome variable in ROSE training set:")
+table(train_rose$decision)
+# ROSE generates observations based on neighbours by using a smoothed 
+# bootstrapping approach, it selects an observation of one of the classes and 
+# generates new examples in its neighbourhood 
+# kernel-methods usually only work with continous data, but ROSE also works
+# with non-continous data, since it uses over- and undersampling
+# (e.g. a synthetic clone of x_i will have the same component for the j-th
+# variable as x_i)
+
+
+# option 4: SMOTE
+# SMOTE only works with continuous data and is hence not applicable here
+
+
+
+
+
+# # export data
+# # does not need to be repeated every time the script runs
+# write.csv(data_model, "data/data_model.csv")
+# # export train and test sets
+# write.csv(train, "data/train_model.csv")
+# write.csv(test, "data/test_model.csv")
+# write.csv(train_upsampled, "data/train_model_upsampled.csv")
+# write.csv(train_downsampled, "data/train_model_downsampled.csv")
+# write.csv(train_rose, "data/train_model_rose.csv")
+
+
+
+```
+
+
+```{r check coding}
+# check how variables are coded (which categories are reference categories)
+# helper-function
+factor_check <- function(dataset){
+  data_temp <- dataset[, sapply(dataset, is.factor)]
+  return(data_temp)
+}
+
+
+check_coding <- function(dataset, variable_list){
+  data_temp <- dataset[, variable_list]
+  data_temp <- factor_check(data_temp)
+  
+  for(var in colnames(data_temp)){
+    print(paste0(var, ":"))
+    print(contrasts(data_temp[, var][[1]]))
+    print_empty_line()
+  }
+}
+
+print("Coding of variables: ")
+check_coding(train, var_list)
+# all factor-variables are properly dummy-coded
+
+
+```
+
+
+
+```{r distribution plots}
+# plotting distribution of outcomes over age
+cdplot(decision ~ age, 
+       data = train,
+       col = c("green", "blue"),
+       ylab = "Decision for or against the product with the carbon-neutral label",
+       xlab = "Age",
+       main = "Conditional density plot")
+# outcome-distributions seems approximately equal over age
+
+
+
+
+
+```
+
+
+```{r normalize data}
+# normalize numeric variables
+library(caret)
+
+data_standardized <- data_model[, c("decision", "lfdn", var_list)]
+
+standardize_data <- function(dataset){
+  numeric_cols_temp <- dataset %>% select_if(is.numeric) %>% colnames()
+  #dataset_num_temp <- dataset[, numeric_cols_temp]
+  #min_max_scaler <- preProcess(dataset_num_temp, method = "range")
+  #dataset[, numeric_cols_temp] <- predict(min_max_scaler, 
+  #                                       dataset[, numeric_cols_temp])
+  dataset[, numeric_cols_temp] <- scale(dataset[, numeric_cols_temp])
+  return(dataset)
+}
+
+data_model <- standardize_data(data_standardized)
+
+
+
+
+
+```
+
+
+
+
+```{r general logsitic regression}
+
+# ----
+# library(mlogit)
+# 
+# # first a logisitc regression in general, later cross-validated prediction
+# # accuracy for model comparisons
+# model_1 <- mlogit(decision ~ gender + education + occupation + av_income,
+#                   data = data_lf)
+# summary(model_1)
+# 
+# 
+# library(mclogit)
+# 
+# model_1 <- mblogit(factor(decision) ~ gender + education + occupation + av_income,
+#                    random = ~ 1|lfdn,
+#                    data = data_lf)
+# summary(model_1)
+# 
+# 
+# 
+# library(nnet)
+# 
+# model_1 <- multinom(decision ~ gender + education + occupation + av_income + 
+#                       + price_cn + price_no_cn + product_type + (1 | lfdn),
+#                     data = data_lf)
+# summary(model_1)
+# 
+# 
+# z <- summary(model_1)$coefficients/summary(model_1)$standard.errors
+# 
+# p <- (1 - pnorm(abs(z), 0, 1)) * 2
+# p
+# 
+# 
+# 
+# 
+# library(lme4)
+# library(glmmTMB)
+# model_2 <- glmmTMB(as.factor(decision) ~ gender + education + occupation + 
+#                      av_income + price_cn + price_no_cn + product_type + 
+#                      (1 | lfdn),
+#                  data = data_lf)
+# summary(model_2)
+# 
+# 
+# 
+# 
+# library(mixcat)
+# 
+# 
+# 
+# library(brms)
+# 
+
+
+
+
+
+# !!! needs work !!!
+
+
+# ----
+
+
+
+
+
+# check whether individual indicator should be included as fixed effects or
+# random effects
+# Hausman test
+# model_me <- glmer(decision ~ gender + education +
+#                     occupation + av_income_factorized +
+#                     price_cn + price_no_cn + product_type + environment + age + (1 | lfdn),
+#                   data = train,
+#                   family = binomial(link = "logit"))
+# 
+# model_fe <- glm(decision ~ gender + education + occupation +
+#                   av_income_factorized + price_cn +
+#                   price_no_cn + product_type +
+#                   environment + age + lfdn,
+#                 data = train,
+#                 family = binomial(link = "logit"))
+
+
+
+
+
+
+
+
+# models for explanation
+library(lme4)
+
+# null model
+# models are fit on whole data set, since this part is about inference,
+# predictions are done in Python later
+fit_0 <- glmer(decision ~ 1 + (1 | lfdn),
+               data = data_model, family = "binomial"(link = "logit"))
+
+summary(fit_0)
+
+
+# full model
+fit_1 <- glmer(decision ~ gender + education + occupation + 
+                 av_income_factorized + price_cn + price_no_cn + product_type + 
+                 environment + age + (1 | lfdn),
+               data = data_model, family = "binomial"(link = "logit"))
+
+summary(fit_1)
+
+
+
+# trying a model with a squared age-term
+fit_1_2 <- glmer(decision ~ gender + education + occupation + 
+                   av_income_factorized + price_cn + price_no_cn + 
+                   product_type + environment + age + I(age^2) + (1 | lfdn),
+                 data = data_model, family = "binomial")
+
+summary(fit_1_2)
+# does not do much for the significance of age, also AIC slightly higher,
+# this ain't it
+# BIC is also lower for the second model (BIC penalizes more variables harder,
+# hence, adding all the variables seems to be sensible)
+
+
+
+# anova to compare null model and full model
+print(anova(fit_0, fit_1))
+# the full model shows an improved fit compared to the null model based on 
+# AIC, maximized log likelihood, and deviance left
+
+# check inidvidual variables in model
+print(anova(fit_1))
+# age and gender seem to not explain much of the model variation, trying 
+# another model
+fit_1_3 <- glmer(decision ~ education + occupation + 
+                   av_income_factorized + price_cn + price_no_cn + 
+                   product_type + environment + (1 | lfdn),
+                 data = data_model, family = "binomial")
+
+summary(fit_1_3)
+anova(fit_1, fit_1_3)
+# the newest model has a slightly lower AIC and BIC (which makes sense, since
+# contains two variables less, but it explains slightly less of the deviance,
+# the difference between the models is not significant, hence, the first model
+# will be kept)
+
+# as a sanity check, let's try a model without mixed effects
+fit_fe <- glm(decision ~ gender + education + occupation + 
+                av_income_factorized + price_cn + price_no_cn + product_type + 
+                environment + age,
+              data = data_model, family = "binomial"(link = "logit"))
+
+summary(fit_fe)
+
+anova(fit_1, fit_fe)
+# mixed-effects work better in this case (as theoretically derived by the
+# data having a panel-data structure)
+
+
+# I decide for model specification 1, this will be the features used for
+# the model comparison
+
+
+
+
+# # pseudo-R^2 of fixed-effects model
+# # (does not work for mixed effects)
+# calculate_lr_r2 <- function(logistic_model){
+#   dev <- logistic_model$deviance
+#   null_dev <- logistic_model$null.deviance
+#   num <- length(logistic_model$fitted.values)
+#   r2_l <- 1 - dev / null_dev
+#   r2_cs <- 1 - exp(-(null_dev - dev) / num)
+#   r2_n <- r2_cs / (1 - (exp(-(null_dev / num))))
+#   cat("Pseudo R^2 for the model\n")
+#   cat("Hosmer and Lemeshow R^2: ", round(r2_l, 4), "\n")
+#   cat("Cox and Snell R^2: ", round(r2_cs, 4), "\n")
+#   cat("Nagelkerke R^2: ", round(r2_n, 4), "\n")
+# }
+# 
+# calculate_lr_r2(fit_fe)
+
+
+
+# effect size
+
+
+
+
+
+
+fit_test_1 <- glmer(decision ~ gender + age + (1 | lfdn),
+                    data = data_model,
+                    family = "binomial"(link = "logit"))
+
+library(car)
+
+vif(fit_test_1)
+
+
+
+
+
+
+
+# outlier detection
+
+
+
+
+
+
+
+
+
+
+
+
+
+# model fit using McFadden R^2
+library(pscl)
+
+pR2(fit_1)
+
+
+
+
+# odds ratios
+print("Odds ratios:")
+print(exp(fixef(fit_1)))
+print_empty_line()
+
+
+
+
+# confidence intervals
+print("Confidence intervals of log odds:")
+print(confint(fit_1))
+# .default uses standard errors for the confidence intervals
+
+print("Confidence intervals for odds ratios:")
+print(exp(confint.default(fit_1)))
+
+
+
+
+# wald test for overall effect of categorical regressors
+library(aod)
+
+wald.test(b = coef(fit_1), Sigma = vcov(fit_1), Terms = 1:2)  
+# terms specifies which coefficients from the model output to add to the wald test
+
+
+
+# can get probs for different expression of regressors
+# e.g. gender
+# does this make sense in the presence of random effects?
+
+
+data_gender <- with(train, data.frame(gender = rep(unique(train$gender), length.out = 10000),
+                                      education = rep(unique(train$education), length.out = 10000),
+                                      occupation = rep(unique(train$occupation), length.out = 10000),
+                                      av_income_factorized = rep(unique(train$av_income_factorized), length.out = 10000),
+                                      price_cn = rep(unique(train$price_cn), length.out = 10000),
+                                      price_no_cn = rep(unique(train$price_no_cn), length.out = 10000),
+                                      product_type = rep(unique(train$product_type), length.out = 10000),
+                                      environment = rep(unique(train$environment), length.out = 10000),
+                                      country = rep(c(46, 70), length.out = 10000)))  
+# 46 and 70 are country codes of costa rica and germany
+
+# shuffle columns
+data_gender <- sapply(data_gender, function(x) sample(x))
+
+
+
+
+
+
+
+
+
+# compare null model and full model
+# difference of deviance
+# with(fit_1, null.deviance - deviance)
+# 
+# # degrees of freedom
+# with(fit_1, df.null - df.residual)
+# 
+# # p-value
+# with(fit_1, pchisq(null.deviance - deviance, df.null - df.residual, lower.tail = False))
+
+# log likelihood
+logLik(fit_1)
+
+
+
+
+# anova
+anova(fit_1, test = "Chisq")
+
+
+
+
+# predictions
+preds <- round(predict(fit_1, newdata = test, type = "response"))
+# type = "response" returns probabilties instead of log odds
+
+
+print(paste0("Accuracy: ",
+             round((1 - (sum(test$decision != preds) / nrow(test))) * 100, 2),
+             "%"))
+
+
+library(ModelMetrics)
+library(ConfusionTableR)
+
+
+preds_fc <- as.factor(preds)
+truth_fc <- test$decision
+
+
+cm_1 <- ConfusionTableR::binary_visualiseR(train_labels = preds_fc,
+                                   truth_labels = truth_fc,
+                                   class_label1 = "No carbon neutral label",
+                                   class_label2 = "Carbon neutral label",
+                                   custom_title = "Logistic regression confusion matrix")
+print(cm_1)
+
+
+
+
+
+# ROC-curve (potentially not sensible given the imbalance of the data)
+library(ROCR)
+
+
+pr <- prediction(preds, test$decision)
+prf <- performance(pr, measure = "tpr", x.measure = "fpr")
+plot(prf)
+
+auc <- performance(pr, measure = "auc")
+auc <- auc@y.values[[1]]
+auc
+
+
+# ----
+
+
+# estimate_predict_plot_log_reg <- function(dataset_train, dataset_test, formula,
+#                                           outcome_variable,
+#                                           cm_title = "Confusion matrix"){
+#   # fit logistic regression
+#   fit_temp <- glmer(formula, data = dataset_train, family = "binomial")
+#   print(summary(fit_temp))
+#   
+#   # predictions
+#   predictions_temp <- round(predict(fit_temp, newdata = dataset_test,
+#                                     type = "response"))
+#   print(paste0("Prediction accuracy: ", 
+#                round((1 - sum(dataset_test[, outcome_variable] != 
+#                                 predictions_temp) / nrow(dataset_test)) * 100, 
+#                      2), "%"))
+#   
+#   print("Were here")
+#   print(unique(predictions_temp))
+#   # confusion matrix
+#   predictions_temp_fc <- factor(predictions_temp, 
+#                                 labels = c("no_cn", "cn"))
+#   truth_temp_fc <- factor(dataset_test[, outcome_variable][[1]], 
+#                           labels = c("no_cn", "cn"))
+#   ConfusionTableR::binary_visualiseR(train_labels = predictions_temp_fc,
+#                                      truth_labels = truth_temp_fc,
+#                                      class_label1 = "No carbon neutral label",
+#                                      class_label2 = "Carbon neutral label",
+#                                      custom_title = cm_title)
+#   
+#   
+#   # create object to output
+#   output = list("model" = fit_temp, "predictions" = predictions_temp)
+#   
+#   return(output)
+# }
+# 
+# 
+# 
+# 
+# 
+# 
+# formula_1 <- as.factor(decision) ~ gender + education + occupation + 
+#   av_income_factorized + price_cn + price_no_cn + product_type + environment + 
+#   (1 | lfdn)  # not fast cars
+# 
+# log_reg_1 <- estimate_predict_plot_log_reg(train, test, formula_1,
+#                                            "decision", 
+#                                            "Confusion matrix - Original data")
+# 
+# log_reg_2 <- estimate_predict_plot_log_reg(train_upsampled, test, formula_1,
+#                                            "decision", 
+#                                            "Confusion matrix - Original data")
+# 
+# log_reg_3 <- estimate_predict_plot_log_reg(train_downsampled, test, formula_1,
+#                                            "decision", 
+#                                            "Confusion matrix - Original data")
+# 
+# log_reg_4 <- estimate_predict_plot_log_reg(train_rose, test, formula_1,
+#                                            "decision", 
+#                                            "Confusion matrix - Original data")
+
+
+
+
+
+
+
+
+
+# models for prediction
+# gotta check if random effects can be included here aswell
+library(glmnet)
+library(glmmLasso)
+library(caret)
+
+# glmnet
+# prepare data for glmnet
+X_train <- train
+y_train <- train[, "decision"]
+X_test <- test
+y_test <- test[, "decision"]
+
+fit_glmnet <- glmnet(X_train, y_train, family = "binomial")
+plot(fit_glmnet)
+
+
+predictions_glmnet <- predict(fit_glmnet, X_test, 
+                              type = "response")
+
+
+formula <- "as.numeric(decision) ~ as.numeric(gender) + as.numeric(education) + as.numeric(occupation) + as.numeric(av_income_factorized) + as.numeric(price_cn) + as.numeric(price_no_cn) + as.numeric(product_type) + as.numeric(environment) + as.numeric(age)"
+
+X_train_model <- predict(caret::dummyVars(formula, X_train, fullRank = TRUE, sep = " "), X_train)
+X_test_model <- predict(caret::dummyVars(formula, X_test, fullRank = TRUE, sep = " "), X_test)
+
+cvglm_1 <- cv.glmnet(x = X_train_model, y = y_train,
+                     nfolds = 5, family = "binomial")
+# problem of missing values in the model matrix which arises from missing
+# observations of combinations of certain variables probably, need to deal
+# with them before
+
+
+
+
+
+# glmmlasso
+
+
+
+
+
+
+
+
+
+
+```
+
+
+
+
+
+```{r logistic regression assumption check}
+# assumption 1: binary outcome variable
+print("Assumption 1:")
+print(unique(train$decision))
+# outcome-variable was binarized before, this serves as sanity check
+print_empty_line()
+
+
+
+# assumption 2: little multicolinearity between regressors
+library(car)
+
+print("Assumption 2:")
+print(car::vif(fit_1))
+print_empty_line()
+# (full rank assumption)
+
+
+
+
+# assumption 3: linear relationship of log odds to independet variables
+library(ggplot2)
+library(sjPlot)
+
+
+# plot_model(fit_1, type = "pred", terms = c("gender", "education", "occupation", "av_income_factorized", "price_cn", "price_no_cn", "product_type", "environment", "country"))
+plot_model(fit_1)
+# not sure whether this depcits what im trying to find out here
+print_empty_line()
+
+
+
+
+# assumption 4: sufficient sample size
+print("Assumption 4:")
+print(paste0("recommended minimum of observations: ", 100 + length(var_list) * 50))
+print(paste0("number of observations: ", nrow(train)))
+print_empty_line()
+
+
+
+
+# assumption 5: no extreme outliers
+library(car)
+
+print("Assumption 5:")
+print(cooks.distance(fit_1))
+plot(cooks.distance(fit_1))
+# not sure whether this predicts what im trying to find out
+print_empty_line()
+
+
+
+
+
+# assumption 6: independence of observations
+print("Assumption 6:")
+print("Dependence between observations, because of panel data structure, combatted by including random effects in the model.")
+
+
+
+
+
+
+
+# additional random effects assumptions
+# assumption 7-1: strict exogeneity of regressors and idiosyncratic errors
+
+
+
+
+# assumption 7-2: strict exogeneity of regressors and individual-specific effects
+
+
+
+
+
+
+
+
+# assumption 8-1: variance of idiosyncratic errors does not depend on the actual expression of the regressors
+
+
+
+
+
+
+
+# assumption 8-2: variance of individual-specific effects does not depend on the actual expression of the regressors
+
+
+
+
+
+
+
+
+
+
+
+```
+
+
+```{r more assumption tests}
+# linearity
+# for every numeric regressor?
+train %>%
+  mutate(comp_res = fixef(fit_1)["age"] * age + residuals(fit_1, type = "working")) %>%
+  ggplot(aes(x = age, y = comp_res)) +
+  geom_point() +
+  geom_smooth(color = "violetred", method = "lm", linetype = 2, se = FALSE) +
+  geom_smooth(se = FALSE) +
+  theme_bw()
+# check again
+# if non-linear realtionship adding the variable squared might help
+# maybe add age^2
+
+
+
+# Independence
+
+
+
+
+
+
+# no multicollinearity
+# VIFs
+
+
+
+
+
+
+
+# no outlier effects
+# DFFITS
+train_dffits <- train %>%
+  mutate(dffits = dffits(fit_1))
+
+train_dffits %>%
+  mutate(obs_number = row_number(),
+         large = ifelse(abs(dffits) > 2 * sqrt(length(coef(fit_1)) / nobs(fit_1)),
+                        "red", "black")) %>%
+  ggplot(aes(obs_number, dffits, color = large)) +
+  geom_point() +
+  geom_hline(yintercept = c(-1, 1) * 2 * sqrt(length(coef(fit_1)) / nobs(fit_1)), color = "red") +
+  scale_color_identity() +
+  theme_bw()
+
+
+
+# DFBETAS
+train_dfbetas <- dfbetas(fit_1) %>%
+  as.data.frame() %>%
+  rename_with(~ paste0("dfb_", .x)) %>%
+  cbind(train)
+
+train_dfbetas %>%
+  mutate(obs_number = row_number()) %>%
+  pivot_longer(cols = starts_with("dfb")) %>%
+  mutate(large = ifelse(abs(value) > 2 / sqrt(nobs(fit_1)),
+                        "red", "black")) %>%
+  ggplot(aes(obs_number, value, color = large)) +
+  geom_point() +
+  geom_hline(yintercept = c(-1, 1) * 2 / sqrt(nobs(fit_1)), color = "red") +
+  facet_wrap(~ name) +
+  scale_color_identity() +
+  theme_bw()
+
+
+
+
+
+
+# fully represented data matrix
+# contingency tables
+# multiple way contingency-cells
+# e.g.
+with(train, table(gender, education, occupation))
+# if empty cells: collapse categories, or drop variables (collecting more data not feasible in this case)
+
+
+
+
+
+
+
+
+
+
+```
+
+
+
+
+
+
+
+
+```{r table choice-variables - chocolate}
+# examine choice-variables
+#table(data_choc$CHO_S1, useNA = "always")
+
+# function to table all variables of a dataset
+table_values <- function(dataset){
+  for (i in 1:dim(dataset)[2]){
+    #print(colnames(dataset[,i]))
+    print(table(dataset[,i], useNA = "always"))
+    print_empty_line()
+  }
+}
+
+
+# check choice-variables
+# choice-distribution chocolate 
+table_values(data_choc %>% select(matches("_S[[:digit:]]+")))
+
+
+```
+
+
+
+```{r table choice-variables - pasta}
+# choice-distribution pasta
+table_values(data_pasta %>% select(matches("_S[[:digit:]]+")))
+
+
+
+
+```
+
+
+```{r tables choice-variables - ground beef}
+# choice-distribution ground beef
+table_values(data_grouf %>% select(matches("_S[[:digit:]]+")))
+
+
+
+```
+
+
+```{r create variable indicating environmenttal decisions}
+# recode choice-variables so for every variable the second option is the one
+# with the carbon neutral label
+recode_vars <- function(dataset_choice, variables){
+  dataset_choice <- dataset_choice %>%
+    mutate_at(variables, funs(recode(., '1' = 2, '2' = 1, '3' = 3, 
+                                     .default = NaN)))
+  return(dataset_choice)
+}
+
+
+
+# check distribution of one variable for comparison
+print("CHO_S3 before recoding:")
+print(table(data_choc$CHO_S3))
+print("")
+
+
+
+# recode dataset for chocolate
+data_choc <- recode_vars(data_choc, c("CHO_S3", "CHO_S5", "CHO_S7", "CHO_S8", 
+                                      "CHO_S9"))
+
+# recode dataset for pasta
+data_pasta <- recode_vars(data_pasta, c("PA_S3", "PA_S5", "PA_S7", "PA_S8",
+                                        "PA_S9"))
+
+# recode dataset for groundbeef
+data_grouf <- recode_vars(data_grouf, c("GB_S3", "GB_S5", "GB_S7", "GB_S8",
+                                        "GB_S9"))
+
+
+
+# check distribution for one variable after recoding
+print("CHO_S3 after recoding:")
+print(table(data_choc$CHO_S3))
+
+
+
+
+# build variable indicating environmental consciousness
+# environmental consciousness indicator does not work well, might look at it
+# again later
+build_env_cons_var <- function(dataset, product){
+  # create column for result
+  dataset["environmental_consciousness_indicator"] <- rep(NA, dim(dataset)[1])
+  # subset data for relevant variables
+  dataset_choice <- dataset %>% select(matches(paste0(product, 
+                                                      "_S[[:digit:]]+")))
+  
+  # subset dataset for categories of choices
+  dataset_choice_same_price <- dataset_choice %>% select(matches(paste0(product, 
+                                                      "_S[1, 6, 9]")))
+  dataset_choice_cn_more_expensive <- dataset_choice %>% 
+    select(matches(paste0(product, "_S[2, 7]")))
+  
+  dataset_choice_cn_more_expensive_extreme <- dataset_choice %>% 
+    select(matches(paste0(product, "_S[3]")))
+  
+  dataset_choice_cn_less_expensive <- dataset_choice %>% 
+    select(matches(paste0(product, "_S[4, 8]")))
+  
+  dataset_choice_cn_less_expensive_extreme <- dataset_choice %>% 
+    select(matches(paste0(product, "_S[5]")))
+  
+  
+  # # check
+  # print("data subsets:")
+  # print(product)
+  # print(colnames(dataset_choice_same_price))
+  # print(colnames(dataset_choice_cn_more_expensive))
+  # print(colnames(dataset_choice_cn_more_expensive_extreme))
+  # print(colnames(dataset_choice_cn_less_expensive))
+  # print(colnames(dataset_choice_cn_less_expensive_extreme))
+  # print("")
+  
+  
+  
+
+  # recode variables to match the score the particular answer gives
+  
+  # print(paste0("same price before ", product, ":"))
+  # print(lapply(dataset_choice_same_price, table))
+  
+  
+  cols_same_price <- colnames(dataset_choice_same_price)
+  dataset_choice_same_price <- dataset_choice_same_price %>%
+    mutate_at(cols_same_price, funs(recode(., '1' = -1, '2' = 1, '3' = 0, 
+                                           .default = NaN)))
+  
+  # print(paste0("same price after ", product, ":"))
+  # print(lapply(dataset_choice_same_price, table))
+  # 
+  # 
+  # 
+  # print(paste0("cn more expensive before ", product, ":"))
+  # print(lapply(dataset_choice_cn_more_expensive, table))
+  
+  
+  
+  cols_cn_more_expensive <- colnames(dataset_choice_cn_more_expensive)
+  dataset_choice_cn_more_expensive <- dataset_choice_cn_more_expensive %>%
+    mutate_at(cols_cn_more_expensive, funs(recode(., '1' = 0, '2' = 2, 
+                                                  '3' = 0, .default = NaN)))
+  
+  
+  
+  # print(paste0("cn more expensive after ", product, ":"))
+  # print(lapply(dataset_choice_cn_more_expensive, table))
+  # 
+  # 
+  # print(paste0("cn more expensive extreme before ", product, ":"))
+  # print(lapply(dataset_choice_cn_more_expensive_extreme, table))
+  
+  
+  
+  cols_cn_more_expensive_extreme <- 
+    colnames(dataset_choice_cn_more_expensive_extreme)
+  dataset_choice_cn_more_expensive_extreme <- 
+    dataset_choice_cn_more_expensive_extreme %>% 
+    mutate_at(cols_cn_more_expensive_extreme, funs(recode(., '1' = 0, '2' = 3, 
+                                                          '3' = 0, 
+                                                          .default = NaN))) 
+  
+    
+  # print(paste0("cn more expensive extreme after ", product, ":"))
+  # print(lapply(dataset_choice_cn_more_expensive_extreme, table))
+  # 
+  # 
+  # print(paste0("cn less expensive before ", product, ":"))
+  # print(lapply(dataset_choice_cn_less_expensive, table))
+  
+  
+  
+  cols_cn_less_expensive <- colnames(dataset_choice_cn_less_expensive)
+  dataset_choice_cn_less_expensive <- dataset_choice_cn_less_expensive %>%
+    mutate_at(cols_cn_less_expensive, funs(recode(., '1' = -2, '2' = 0, 
+                                                  '3' = 0, .default = NaN)))
+  
+      
+  # print(paste0("cn less expensive after ", product, ":"))
+  # print(lapply(dataset_choice_cn_less_expensive, table))
+  # 
+  # 
+  # print(paste0("cn less expensive extreme before ", product, ":"))
+  # print(lapply(dataset_choice_cn_less_expensive_extreme, table))
+  
+  
+  cols_cn_less_expensive_extreme <- 
+    colnames(dataset_choice_cn_less_expensive_extreme)
+  dataset_choice_cn_less_expensive_extreme <- 
+    dataset_choice_cn_less_expensive_extreme %>%
+    mutate_at(cols_cn_less_expensive_extreme, funs(recode(., '1' = -3, '2' = 0,
+                                                   '3' = 0, .default = NaN)))
+  
+  
+  # print(paste0("cn less expensive extreme after ", product, ":"))
+  # print(lapply(dataset_choice_cn_less_expensive_extreme, table))
+  # print("")
+  # print("=====================================================================")
+  
+  # calculate indicator
+  dataset["environmental_consciousness_indicator"] = 
+    rowSums(dataset_choice_same_price, na.rm = TRUE) + 
+    rowSums(dataset_choice_cn_more_expensive, na.rm = TRUE) +
+    rowSums(dataset_choice_cn_more_expensive_extreme, na.rm = TRUE) +
+    rowSums(dataset_choice_cn_less_expensive, na.rm = TRUE) + 
+    rowSums(dataset_choice_cn_less_expensive_extreme, na.rm = TRUE)
+  
+  return(dataset)
+}
+
+# build indicator variable for chocolate dataset
+data_choc <- build_env_cons_var(data_choc, "CHO")
+data_pasta <- build_env_cons_var(data_pasta, "PA")
+data_grouf <- build_env_cons_var(data_grouf, "GB")
+
+
+
+# check functions again to make sure they make sense and work as intended
+# and check whether the data encoding is correct
+
+
+
+
+```
+
+
+
+
+
+
+```{r visualize distributions}
+
+# not needed for current approach of the analysis
+
+# histograms of environmental consciousness indicator by dataset
+# chocolate
+hist(data_choc$environmental_consciousness_indicator, col = "cornflowerblue",
+     main = "Environmental consciousness indicator distribution chocolate",
+     xlim = c(-10, 10), xlab = "environmental consciousness indicator",
+     ylab = "absolute frequency")
+
+# pasta
+hist(data_pasta$environmental_consciousness_indicator, col = "cornflowerblue",
+     main = "Environmental consciousness indicator distribution pasta",
+     xlim = c(-10, 10), xlab = "environmental consciousness indicator",
+     ylab = "absolute frequency")
+
+# groundbeef
+hist(data_grouf$environmental_consciousness_indicator, col = "cornflowerblue",
+     main = "Environmental consciousness indicator distribution ground beef",
+     xlim = c(-10, 10), xlab = "environmental consciousness indicator",
+     ylab = "absolute frequency")
+
+
+
+# all conversions examined, given the system at hand, the distributions should
+# be sound
+
+
+
+```
+
+
+```{r factor analysis}
+
+# automated approach within next code cell
+
+# check whether similar choices were made
+
+# answers already recoded to have the same direction (recode_vars-function)
+
+# does factor analysis make sense for the type of data?
+
+library(psych)
+library(GPArotation)
+library(nFactors)
+
+
+
+# get an estimate of number of factors
+evs_choc <- eigen(cor(na.omit(data_choc %>% 
+                                select(matches("_S[[:digit:]]+")))))
+ap_choc <- parallel(subject=nrow(data_choc %>% 
+                                   select(matches("_S[[:digit:]]+"))), 
+                    var=ncol(data_choc %>% select(matches("_S[[:digit:]]+"))), 
+                    rep=100, cent=0.5)
+nsr_choc <- nScree(x=evs_choc$values, apparallel=ap_choc$eigen$qevpea)
+print(plotnScree(nsr_choc))
+
+# 2-3 factors
+choc_fa <- factanal(data_choc %>% select(matches("_S[[:digit:]]+")), 
+                    factors = 3)
+print(choc_fa)
+print(choc_fa$uniquenesses)
+
+
+# using another method
+library(psych)
+
+print("")
+print("=========================================")
+choc_fa_2 <- fa(data_choc %>% select(matches("_S[[:digit:]]+")), nfactors = 3,
+                scores = "regression", rotate = "oblimin")
+print(choc_fa_2$loadings)
+print("")
+print("loadings:")
+print(choc_fa_2$uniquenesses)
+
+
+# visualize first two factors
+plot(choc_fa_2$loadings[,1], choc_fa_2$loadings[,2], 
+     xlab= "1", ylab = "2", xlim = c(-1,1), ylim = c(-1,1), main = "chocolate")
+text(choc_fa_2$loadings[,1] - 0.00, choc_fa_2$loadings[,2] + 0.20,
+     colnames(data_choc %>% select(matches("_S[[:digit:]]+"))), 
+     col = "cornflowerblue")
+abline(h = 0, v = 0)
+
+
+
+# similar answers for questions with same price; as well as questions for CN 
+# more expensive; as well as question where CN less expensive
+
+
+
+
+
+# pasta
+# get an estimate of number of factors
+evs_pasta <- eigen(cor(na.omit(data_pasta %>% 
+                                 select(matches("_S[[:digit:]]+")))))
+ap_pasta <- parallel(subject=nrow(data_pasta %>% 
+                                    select(matches("_S[[:digit:]]+"))),
+                     var=ncol(data_pasta %>% select(matches("_S[[:digit:]]+"))),
+                     rep=100,cent=0.5)
+nsr_pasta <- nScree(x=evs_pasta$values, apparallel=ap_pasta$eigen$qevpea)
+print("")
+print("======================================================================")
+print("pasta:")
+print(plotnScree(nsr_pasta))
+pasta_fa_2 <- fa(data_pasta %>% select(matches("_S[[:digit:]]+")), nfactors = 2,
+                scores = "regression", rotate = "oblimin")
+print(pasta_fa_2$loadings)
+print("")
+print("loadings:")
+print(pasta_fa_2$uniquenesses)
+
+
+# visualize first two factors
+plot(pasta_fa_2$loadings[,1], pasta_fa_2$loadings[,2], 
+     xlab= "1", ylab = "2", xlim = c(-1,1), ylim = c(-1,1), main = "pasta")
+text(pasta_fa_2$loadings[,1] - 0.00, pasta_fa_2$loadings[,2] + 0.20,
+     colnames(data_pasta %>% select(matches("_S[[:digit:]]+"))), 
+     col = "cornflowerblue")
+abline(h = 0, v = 0)
+
+
+
+
+
+# ground beef
+evs_grouf <- eigen(cor(na.omit(data_grouf %>% 
+                                 select(matches("_S[[:digit:]]+")))))
+ap_grouf <- parallel(subject=nrow(data_grouf %>% 
+                                    select(matches("_S[[:digit:]]+"))),
+                     var=ncol(data_grouf %>% select(matches("_S[[:digit:]]+"))),
+                     rep=100,cent=0.5)
+nsr_grouf <- nScree(x=evs_grouf$values, apparallel=ap_grouf$eigen$qevpea)
+print("")
+print("======================================================================")
+print("ground beef:")
+print(plotnScree(nsr_grouf))
+grouf_fa_2 <- fa(data_grouf %>% select(matches("_S[[:digit:]]+")), nfactors = 2,
+                scores = "regression", rotate = "oblimin")
+print(grouf_fa_2$loadings)
+print("")
+print("loadings:")
+print(grouf_fa_2$uniquenesses)
+
+
+
+
+# visualize first two factors
+plot(grouf_fa_2$loadings[,1], grouf_fa_2$loadings[,2], 
+     xlab= "1", ylab = "2", xlim = c(-1,1), ylim = c(-1,1), 
+     main = "ground beef")
+text(grouf_fa_2$loadings[,1] - 0.00, grouf_fa_2$loadings[,2] + 0.20,
+     colnames(data_grouf %>% select(matches("_S[[:digit:]]+"))), 
+     col = "cornflowerblue")
+abline(h = 0, v = 0)
+
+
+
+
+
+
+
+```
+
+
+
+```{r exploratory factor analysis}
+# function to conduct an exploratory factor analysis
+get_factor_analysis_exploratory <- function(dataset, rotations){
+  
+  # subset data
+  data_temp <- dataset %>% select(matches("_S[[:digit:]]+"))
+  # choose number of factors
+  evs_temp <- eigen(cor(na.omit(data_temp )))
+  ap_temp <- parallel(subject = nrow(data_temp), var = ncol(data_temp),
+                      rep = 100, cent = 0.5)
+  nsr_temp <- nScree(x = evs_temp$values, apparallel = ap_temp$eigen$qevpea)
+  
+  # print the scree plot
+  print(plotnScree(nsr_temp))
+  
+  
+  # choose number of factors
+  n_fact <- nsr_temp$Components$noc
+
+  print(paste0("number of factors: ", n_fact))
+  
+  
+  # factor analysis
+  for (rotation in rotations){
+    fa_temp <- fa(data_temp, nfactors = n_fact, scores = "regression",
+                  rotate = rotation)
+    
+    # print results
+    print(paste0(rotation, ":"))
+    print("laodings:")
+    print(fa_temp$loadings)
+    print("uniquenesses:")
+    print(fa_temp$uniquenesses)
+    
+    # visualize first two factors
+    if (n_fact > 1){
+      plot(fa_temp$loadings[,1], fa_temp$loadings[,2],
+           xlab = "1", ylab = "2", xlim = c(-1, 1), ylim = c(-1, 1),
+           main = paste0("first two factors ", rotation))
+      text(fa_temp$loadings[,1] - 0.00, fa_temp$loadings[,2] + 0.20,
+           colnames(data_temp), col = "cornflowerblue")
+      abline(h = 0, v = 0)
+    }
+  }
+}
+
+# specify rotations
+fa_rotations = list("none", "varimax", "promax", "oblimin")
+
+
+# chocolate
+get_factor_analysis_exploratory(data_choc, fa_rotations)
+
+
+# pasta
+get_factor_analysis_exploratory(data_pasta, fa_rotations)
+
+
+# ground beef
+get_factor_analysis_exploratory(data_grouf, fa_rotations)
+
+```
+
+
+
+# Cluster Analysis for real this time
+```{r cluster analysis for real this time}
+library(mltools)
+library(data.table)
+
+
+
+# let's create a lovely function 
+get_cluster_analysis_dendrogram <- function(dataset, variables, label_var){
+  # subset dataset for relevant variables
+  data_temp <- dataset[, variables]
+  
+  print(paste0("step 1: ", colnames(data_temp)))
+  
+  # one-hot-encode factor variables
+  # select factor variables
+  data_temp_dummy <- data_temp %>% select_if(is.factor)
+  # one-hot-encode
+  data_temp_dummy_one_hot <- one_hot(as.data.table(data_temp_dummy))
+  # put numeric variables and one-hot-encoded dummy-variables together
+  data_temp_one_hot <- cbind(data_temp %>% select_if(is.numeric),
+                             data_temp_dummy_one_hot)
+  
+  
+  print("step 2: ")
+  print(data_temp_one_hot)
+  
+  # normalize data
+  data_temp_one_hot_means <- apply(data_temp_one_hot, 2, mean, na.rm = TRUE)
+  data_temp_one_hot_sds <- apply(data_temp_one_hot, 2, sd, na.rm = TRUE)
+  data_temp_normalized <- scale(data_temp_one_hot,
+                                center = data_temp_one_hot_means,
+                                scale = data_temp_one_hot_sds)
+  
+  print("step 3: ")
+  print(data_temp_normalized)
+  
+  # get rid of NA's (preferable to imputation in this case?)
+  data_temp_normalized <- na.omit(data_temp_normalized)
+  
+  print("step 3.5: ")
+  print(dim(data_temp_normalized))
+  
+  # calculate distances
+  data_temp_distances <- dist(data_temp_normalized)
+  
+  print("step 4: ")
+  print(sum(is.na(data_temp_distances)))
+  
+  # hierarchical clustering
+  data_temp_clusters <- hclust(data_temp_distances)
+  
+  
+  print("we're here!")
+  
+  # get visualizations
+  plot(data_temp_clusters)
+  #plot(data_temp_clusters, labels = dataset[label_variable], 
+  #     main = paste0("Cluster Analysis ", label_variable))
+  #plot(data_temp_clusters, hang = -1, labels = data_set[label_variable],
+  #     main = paste0("Cluster Analysis ", label_variable))
+  
+  
+  # lets return this, it might come in handy later
+  return(data_temp_normalized)
+  
+}
+
+
+variables_cluster_analysis <- c("age", "gender", 
+                                "education", "occupation", 
+                                "av_income_factorized")
+label_variable = "CHO_S1"
+
+data_choc_normalized <- 
+  get_cluster_analysis_dendrogram(data_choc, variables_cluster_analysis, 
+                               label_variable)
+
+
+
+# gotta check cluster analysis using dendograms in general again
+
+
+
+
+
+
+```
+
+
+
+```{r clustering kmeans}
+library(cluster)
+# reproducibility
+set.seed(100)
+
+# kmeans
+k_clusters <- kmeans(data_choc_normalized, 5)
+
+
+ot_clusters <- data_choc_normalized
+data_choc_dist_short_set <- dist(ot_clusters, method = "euclidean")
+cluster_1 <- hclust(data_choc_dist_short_set, method = "complete")
+pamv_short_set <- pam(data_choc_dist_short_set, 4 , diss = FALSE)
+clusplot(pamv_short_set, shade = FALSE, labels = 2,
+         col.clus = "cornflowerblue", 
+         col.p = "violetred", span = FALSE,
+         main = "kmeans", cex = 1)
+
+
+
+# perhaps need to aggregate data for a cluster analysis
+
+
+
+
+
+
+# try another library
+library(factoextra)
+
+
+
+kmeans_2 <- kmeans(data_choc_normalized, centers = 5, nstart = 25)
+
+#fviz_cluster(kmeans_2, data_choc, ggtheme = theme_bw())
+# need to work on this command
+
+
+
+
+
+
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r multinomial logit model}
+library(nnet)
+
+data_choc$CHO_S2 <- as.factor(data_choc$CHO_S2)
+
+data_choc$CHO_S2_labeled <- factor(data_choc$CHO_S2,
+                                   levels = c(1, 2, 3),
+                                   labels = c("no_label", "cn_label", 
+                                              "neither"))
+
+
+data_choc$CHO_S2_labeled <- relevel(data_choc$CHO_S2_labeled, ref = "no_label")
+
+mlm_1 <- multinom(CHO_S2_labeled ~ age + education + av_income,
+                    data = data_choc)
+
+summary(mlm_1)
+
+z <- summary(mlm_1)$coefficients/summary(mlm_1)$standard.errors
+
+p <- (1 - pnorm(abs(z), 0, 1)) * 2
+p
+
+```
+
+
+
+```{r relative risk}
+# relative risk
+print(exp(coef(mlm_1)))
+
+
+
+
+
+```
+
+
+```{r predicted probs}
+print(head(pp <- fitted(mlm_1)))
+
+
+df_educ <- data.frame(education = c("Secondary School General", 
+                                 "Secondary School", 
+                                 "Secondary School Academic", 
+                                 "Bachelor's Degree", 
+                                 "Master's Degree", 
+                                 "Ph.D. or higher",
+                                 "None"),
+                   age = mean(data_choc$age, na.rm = TRUE),
+                   av_income = mean(data_choc$av_income, na.rm = TRUE))
+#should probably use the categorized av_income and median instead of mean or something similar
+
+mlm_1_predict <- predict(mlm_1, newdata = df_educ, "probs")
+print(mlm_1_predict)
+
+
+
+
+
+# check the continous variable age
+df_age <- data.frame(education = rep(c("Secondary School General", 
+                                 "Secondary School", 
+                                 "Secondary School Academic", 
+                                 "Bachelor's Degree", 
+                                 "Master's Degree", 
+                                 "Ph.D. or higher",
+                                 "None"), each = 85-17),
+                     age = rep(c(17:84), 7),
+                     av_income = mean(data_choc$av_income))
+
+# predicted probabilities
+pp_age <- cbind(df_age, predict(mlm_1, newdata = df_age, type = "probs", se = TRUE))
+
+# mean probs within each level of educ
+mean_probs <- by(pp_age[4:6], pp_age$education, colMeans)
+print(mean_probs)
+
+
+
+```
+
+
+
+
+
+```{r prob plots}
+library(reshape)
+
+pp_age <- subset(pp_age, select = -c(av_income))
+
+lpp <- melt(pp_age, id.vars = c("education", "age"))
+print(head(lpp))
+
+
+
+
+# plot
+plot_prob_1 <- ggplot(lpp,
+                      aes(x = age, y = value,
+                          colour = education)) +
+  geom_line() +
+  facet_grid(variable ~ ., scales = "free") +
+  theme_bw()
+print(plot_prob_1)
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+```{r regression}
+# regression analysis
+reg_1 <- lm(environmental_consciousness_indicator ~ country + age + education + av_income + occupation + gender,
+            data = data_choc)
+print(summary(reg_1))
+
+
+
+# try single choice-variables
+data_choc_test <- data_choc %>% subset(CHO_S1 == 1 | CHO_S1 == 2)
+
+reg_test <- glm(environmental_consciousness_indicator ~ as.factor(country) + age + education + occupation + gender, data = data_choc_test)
+
+print(summary(reg_test))
+
+
+
+
+```
+
+
+
+
+```{r random forest}
+
+# also add a directed acylyic graph at some point... would be a lovely detail
+library(randomForest)
+
+X <- data_choc[,c("age", "education", "av_income", "occupation")]
+Y <- data_choc$CHO_S2
+X[is.na(X)] <- 0
+
+forest_1 <- randomForest(X, Y)
+summary(forest_1)
+
+library(party)
+cforest(CHO_S2 ~ country + age + education + 
+          av_income + occupation + gender, data = data_choc,
+        controls=cforest_control(mtry=2, mincriterion=0))
+
+
+getTree(forest_1)
+
+
+```
+
+
+
+
+
+
+```{r learners}
+
+
+
+
+
+```
+
+
+
+
+
+
+```{r neural net}
+
+
+
+
+
+
+```
+
+
+
+
+
+
