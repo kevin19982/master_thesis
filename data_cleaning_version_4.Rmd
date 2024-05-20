@@ -903,14 +903,21 @@ cdplot(decision ~ age,
 ```
 
 
+
+
+
 ```{r normalize data}
 # normalize numeric variables
 library(caret)
 
-data_standardized <- data_model[, c("decision", "lfdn", "choice", var_list)]
-
-standardize_data <- function(dataset){
-  numeric_cols_temp <- dataset %>% select_if(is.numeric) %>% colnames()
+# function that standardizes columns of a dataet based on a subset of variables
+# given by a list
+standardize_data <- function(dataset, variable_list){
+  var_list_temp <- variable_list
+  numeric_cols_temp <- dataset[, var_list_temp] %>% 
+    select_if(is.numeric) %>% colnames()
+  print("Standardized variables:")
+  print(numeric_cols_temp)
   #dataset_num_temp <- dataset[, numeric_cols_temp]
   #min_max_scaler <- preProcess(dataset_num_temp, method = "range")
   #dataset[, numeric_cols_temp] <- predict(min_max_scaler, 
@@ -919,7 +926,7 @@ standardize_data <- function(dataset){
   return(dataset)
 }
 
-data_model <- standardize_data(data_standardized)
+data_standardized <- standardize_data(data_model, var_list)
 
 
 
@@ -929,17 +936,18 @@ data_model <- standardize_data(data_standardized)
 
 
 
+
 ```{r train test split}
 # subset dataframe for variables that are relevant for further analyses
-# data_model <- data_model %>% subset(select = c(lfdn, purchase_CHO, purchase_PA,
-#                                                purchase_GB, rank_GB, rank_CHO,
-#                                                rank_CHEESE, rank_WHEAT,
-#                                                rank_TOM, age, gender, country,
-#                                                education, occupation, av_income,
-#                                                environment, Country_Name,
-#                                                Generation, av_income_factorized,
-#                                                choice, decision, price_cn,
-#                                                price_no_cn, product_type))
+data_model <- data_model %>% subset(select = c(lfdn, purchase_CHO, purchase_PA,
+                                               purchase_GB, rank_GB, rank_CHO,
+                                               rank_CHEESE, rank_WHEAT,
+                                               rank_TOM, age, gender, country,
+                                               education, occupation, av_income,
+                                               environment, Country_Name,
+                                               Generation, av_income_factorized,
+                                               choice, decision, price_cn,
+                                               price_no_cn, product_type))
 
 
 # split data into training and test set by including certain individuals in the
@@ -1061,8 +1069,8 @@ table(train_rose$decision)
 
 
 
-# export data
-# does not need to be repeated every time the script runs
+# # export data
+# # does not need to be repeated every time the script runs
 # write.csv(data_model, "data/data_model.csv")
 # # export train and test sets
 # write.csv(train, "data/train_model.csv")
@@ -1074,7 +1082,6 @@ table(train_rose$decision)
 
 
 ```
-
 
 
 
