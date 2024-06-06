@@ -20,10 +20,6 @@ library(plyr)
 # load in data
 data <- read_excel("data/Data_CarbonNeutral_compact.xlsx") 
 
-
-
-
-
 ```
 
 
@@ -200,12 +196,6 @@ data_clean$av_income_factorized <- factor(data_clean$av_income,
 # this does not have clear distinctions between levels, e.g. "1500" could 
 # belong to the second or the third level, depending on interpretation
 
-
-
-
-
-
-
 ```
 
 
@@ -246,7 +236,6 @@ data_recoded <- recode_vars(data_recoded, c("CHO_S3", "CHO_S5", "CHO_S7", "CHO_S
 print("CHO_S3 after recoding:")
 print(table(data_recoded$CHO_S3))
 
-
 ```
 
 
@@ -276,8 +265,9 @@ participants_origin$Country_Name[participants_origin$Country_Name == "United Sta
 world_data <- map_data("world") %>% filter(region != "Antarctica") %>% fortify
 # no one from Antarctica participated... I'm shocked as well
 
-# print map
-ggplot() +
+# print and save map
+png("figures/world_map.png", width = 1000, height = 600)
+map_world <- ggplot() +
   geom_map(data = world_data, map = world_data,
            aes(long, lat, map_id = region), fill = "white", colour = "black",
            size = 0.5) +
@@ -285,7 +275,11 @@ ggplot() +
            aes(fill = freq, map_id = Country_Name), colour = "black") +
   scale_fill_continuous(low = "cornflowerblue", high = "midnightblue") +
   xlab("longitudinal") + ylab("lateral") +
+  labs(fill = "Count") +
   theme_bw()
+print(map_world)
+dev.off()
+print(map_world)
 
 ```
 
@@ -313,6 +307,7 @@ europe <- world_data[world_data$region == europe_country_list,]
 
 
 # print map
+png("figures/map_europe.png", width = 1000, height = 600)
 map_europe <- ggplot() +
   geom_map(data = europe, map = world_data,
            aes(long, lat, map_id = region), fill = "white", colour = "black",
@@ -321,7 +316,10 @@ map_europe <- ggplot() +
            aes(fill = freq, map_id = Country_Name), colour = "black") +
   scale_fill_continuous(low = "cornflowerblue", high = "midnightblue") +
   xlab("longitudinal") + ylab("lateral") +
+  labs(fill = "Count") +
   theme_bw() + xlim(-10,40) + ylim(35,70)
+print(map_europe)
+dev.off()
 print(map_europe)
 
 
@@ -340,6 +338,7 @@ america_nm <- world_data[world_data$region == america_nm_country_list,]
 # trial and error with the limits
 
 # print map
+png("figures/map_north_america.png", width = 1000, height = 600)
 map_america_nm <- ggplot() +
   geom_map(data = america_nm, map = world_data,
            aes(long, lat, map_id = region), fill = "white", colour = "black",
@@ -348,7 +347,10 @@ map_america_nm <- ggplot() +
            aes(fill = freq, map_id = Country_Name), colour = "black") +
   scale_fill_continuous(low = "cornflowerblue", high = "midnightblue") +
   xlab("longitudinal") + ylab("lateral") +
+  labs(fill = "Count") +
   theme_bw() + xlim(-175,-25) + ylim(10, 80)
+print(map_america_nm)
+dev.off()
 print(map_america_nm)
 
 
@@ -361,6 +363,7 @@ america_s_country_list <- c("Argentina", "Bolivia", "Brazil", "Chile",
 america_s <- world_data[world_data$region == america_s_country_list,]
 
 # print map
+png("figures/map_south_america.png", width = 1000, height = 600)
 map_america_s <- ggplot() +
   geom_map(data = america_s, map = world_data,
            aes(long, lat, map_id = region), fill = "white", colour = "black",
@@ -369,10 +372,43 @@ map_america_s <- ggplot() +
            aes(fill = freq, map_id = Country_Name), colour = "black") +
   scale_fill_continuous(low = "cornflowerblue", high = "midnightblue") +
   xlab("longitudinal") + ylab("lateral") +
+  labs(fill = "Count") +
   theme_bw() + xlim(-105, -20) + ylim(-55,15)
+print(map_america_s)
+dev.off()
 print(map_america_s)
 
 ```
+
+
+```{r create table with demographics}
+library(sjPlot)
+library(gtsummary)
+library(gt)
+
+# create table one
+table_one <- tbl_summary(data_recoded,
+            include = c(age, gender, education, occupation,
+                        av_income_factorized, environment),
+            statistic = c(age ~ "{median} ({sd})"),
+            label = c(age ~ "Age, median (SD)",
+                      gender ~ "Gender, n (%)",
+                      education ~ "Education, n (%)",
+                      occupation ~ "Occupation, n (%)",
+                      av_income_factorized ~ "Income, n(%)",
+                      "environment" ~ "View of environmental issues, n (%)"),
+            missing = "no") %>% 
+  modify_header(label = "**Demographics (missing values excluded)**") %>%
+  bold_labels()
+print(table_one)
+
+# save table one
+table_one %>%
+  as_gt() %>%
+  gtsave("figures/table_one.png")
+
+```
+
 
 
 
@@ -390,7 +426,7 @@ print(paste0("max age: ", max(data_recoded$age, na.rm = TRUE)))
 
 
 # histogram of age distributions overall
-ggplot(data_recoded, aes(x = age)) +
+age_histogram <- ggplot(data_recoded, aes(x = age)) +
   geom_histogram(
     aes(y = ..density..), 
     color = "black", 
@@ -406,12 +442,14 @@ ggplot(data_recoded, aes(x = age)) +
   scale_y_continuous(breaks = seq(0.0, 0.1, 0.01), limits = c(0.0, 0.07)) +
   labs(caption = "There is some concentration  \naround 25 years and 55 years,
        one has to take this into consideration.") +
-  theme_bw()
+  theme_bw() +
+  theme(text = element_text(size = 30)) 
 
 
 
 # histograms of age by gender distributions
-ggplot(data_recoded,
+png("figures/gender_histogram.png", width = 1000, height = 700)
+gender_histogram <- ggplot(data_recoded,
        aes(x = age, fill = gender)) +
   geom_histogram(alpha = 1, 
                  position = "stack", 
@@ -425,11 +463,14 @@ ggplot(data_recoded,
                                           10, f = ceiling) + 10)) +
   #coord_flip() +
   guides(fill = guide_legend(title = "Gender")) +
-  theme_minimal() +
+  theme_bw() +
+  theme(text = element_text(size = 30)) +
   #scale_colour_ghibli_d("LaputaMedium", direction = -1) +
   scale_fill_ghibli_d("LaputaMedium", direction = -1) 
   #scale_fill_attackOnTitan()
-  
+print(gender_histogram)
+dev.off()
+print(gender_histogram)
 
 
 # histograms of age distributions for germany and costa rica specifically
@@ -438,8 +479,11 @@ ggplot(data_recoded,
 
 
 
-ggplot(data_recoded %>% filter(Country_Name %in% c("Germany", "Costa Rica")),
-       aes(x = age, fill = Country_Name)) +
+png("figures/country_histogram.png", width = 1000, height = 700)
+country_histogram <- ggplot(data_recoded %>% 
+                              filter(Country_Name %in% 
+                                       c("Germany", "Costa Rica")), 
+                            aes(x = age, fill = Country_Name)) +
   geom_histogram(alpha = 0.5,
                  position = "identity",
                  color = "black") +
@@ -451,9 +495,142 @@ ggplot(data_recoded %>% filter(Country_Name %in% c("Germany", "Costa Rica")),
                                 round_any(max(data_recoded$age, na.rm = TRUE), 
                                           10, f = ceiling) + 10)) +
   guides(fill = guide_legend(title = "Country")) +
-  theme_minimal() 
+  scale_fill_manual(values = c(ghibli_palettes$MononokeMedium[3], 
+                               ghibli_palettes$MononokeMedium[6])) +
+  #scale_fill_brewer(palette = "Dark2") +
+  #scale_fill_ghibli_d("MononokeMedium", direction = -1) +
+  theme_bw() +
+  theme(text = element_text(size = 30)) 
   #scale_fill_attackOnTitan() +
   #annotation_raster(cat, xmin = 70, xmax = 100, ymin = 40, ymax = 70)
+print(country_histogram)
+dev.off()
+print(country_histogram)
+
+
+
+
+# Violin-plot for gender
+png("figures/age_gender_violin.png", width = 1000, height = 700)
+age_gender_violin <- ggplot(data_recoded %>% 
+                              filter(gender %in% 
+                                       c("Female", "Male", "Non-binary")), 
+       aes(x = gender, y = age)) +
+  geom_violin(fill = ghibli_palettes$LaputaMedium[6], size = 1) + 
+  labs(title = "Age distribution for different genders",
+       subtitle = "(too few observations for 'Other')") +
+  xlab("Gender") + ylab("Age") +
+  theme_bw() +
+  theme(text = element_text(size = 30)) 
+print(age_gender_violin)
+dev.off()
+print(age_gender_violin)
+
+
+# ggplot(data_recoded %>% filter(gender %in% c("Female", "Male")),
+#        aes(x = age)) +
+#   geom_density(aes(fill = gender), alpha = 0.8) +
+#   scale_fill_ghibli_d("LaputaMedium", direction = -1) +
+#   theme_bw()
+
+
+
+png("figures/age_gender_density.png", width = 1000, height = 700)
+age_gender_denstiy <- ggplot(data_recoded %>% 
+                               filter(gender %in% 
+                                        c("Female", "Male", "Non-binary")),
+       aes(x = age, color = gender)) +
+  geom_density(size = 2) +
+  labs(title = "Age distribution by gender",
+       subtitle = "(too few observations for 'Other')",
+       color = "Gender") +
+  scale_color_ghibli_d("LaputaMedium", direction = -1) +
+  theme_bw() +
+  theme(text = element_text(size = 30))
+print(age_gender_denstiy)
+dev.off()
+print(age_gender_denstiy)
+  
+
+
+
+# contingency-table education and occupation
+library(ggpubr)
+
+edu_occ <- data.frame(table(data_recoded$education, data_recoded$occupation))
+
+
+png("figures/edu_occ_balloon.png", width = 800, height = 500)
+edu_occ_balloon <- ggballoonplot(edu_occ, fill = "Freq", ggtheme = theme_bw(),
+                                 size = "Freq",
+                                 shape = 21) +
+  gradient_fill(c("lightskyblue1", 
+                  "navyblue")) +
+  ggtitle("Co-occurence of education and occupation \ncategories") +
+  theme(text = element_text(size = 20)) 
+print(edu_occ_balloon)
+dev.off()
+print(edu_occ_balloon)
+
+
+
+
+
+
+library(ggridges)
+
+
+png("figures/age_income_density.png", width = 1000, height = 700)
+age_income_density <- ggplot(data_recoded %>% filter(av_income_factorized %in%
+                                 c("<1000", "1000-1500", "1500-3500",
+                                   "3500-5000", ">5000", "No answer")), 
+       aes(x = age, y = av_income_factorized)) +
+  geom_density_ridges(aes(fill = av_income_factorized), alpha = 0.5) +
+  scale_fill_ghibli_d("MononokeMedium", direction = -1) +
+  ggtitle("Income distribution by age group") +
+  xlab("Age") + ylab("Income") +
+  labs(fill = "Income category") +
+  theme_bw() +
+  theme(text = element_text(size = 30))
+print(age_income_density)
+dev.off()
+print(age_income_density)
+
+
+
+
+png("figures/environment_bar.png", width = 1000, height = 700)
+environment_bar <- ggplot(data_recoded %>% filter(environment %in%
+                                 c("Priority", "Not priority")), 
+       aes(x = environment)) +
+  geom_bar(fill = ghibli_palettes$LaputaMedium[6]) +
+  ggtitle("View on environmental issues") +
+  xlab("") + ylab("Count") +
+  theme_minimal() +
+  theme(text = element_text(size = 30))
+print(environment_bar)
+dev.off()
+print(environment_bar)
+
+
+
+
+png("figures/environment_boxplot.png", width = 700, height = 700)
+environment_boxplot <- ggplot(data_recoded %>% filter(environment %in% 
+                                 c("Priority", "Not priority")), 
+       aes(x = environment, y = age)) +
+  geom_boxplot(color = "black") +
+  geom_jitter(width = 0.2, size = 5, color = ghibli_palettes$LaputaMedium[6]) +
+  xlab("") + ylab("Age") +
+  ylim(0, 100) +
+  ggtitle("View on environmental issues by age") +
+  theme_minimal() +
+  theme(text = element_text(size = 30))
+print(environment_boxplot)
+dev.off()
+print(environment_boxplot)
+
+
 
 
 
@@ -462,6 +639,236 @@ ggplot(data_recoded %>% filter(Country_Name %in% c("Germany", "Costa Rica")),
 
 
 ```
+
+
+
+
+
+```{r kmodes clustering}
+library(klaR)
+
+data_cluster <- data_recoded[, c("age", "gender", "Country_Name", "education",
+                               "occupation", "av_income_factorized",
+                               "environment")]
+data_cluster <- as.data.frame(na.omit(sapply(data_cluster, as.numeric)))
+
+cluster_explore <- kmodes(data_cluster, 5)
+
+data_clustered <- data_cluster
+data_clustered$cluster <- cluster_explore$cluster
+head(data_clustered)
+
+
+
+# helper function to get percentages from table()
+table_perc <- function(column){
+  table_output <- table(column)
+  return(round(table_output / sum(table_output), 2))
+}
+
+
+
+# check whether some clusters can be found
+for (i in 1:length(unique(data_clustered$cluster))){
+  print(paste0("cluster: ", i))
+  data_temp <- data_clustered[data_clustered$cluster == i,]
+  data_temp <- data_temp %>% dplyr::select(gender, education, occupation,
+                                           av_income_factorized, environment, 
+                                           cluster)
+  print(sapply(data_temp[, -which(names(data_temp) %in% c("cluster"))], 
+               table_perc))
+  print("num obs:")
+  print(table(data_temp$cluster))
+  for(i in 1:3){
+    print_empty_line()
+  }
+  print("--------------------------------------------------------------------")
+}
+
+
+
+
+
+
+
+
+```
+
+
+
+
+
+
+```{r hierarchical clustering}
+library(dplyr)
+
+set.seed(100)
+
+
+# calcualte dissimilarity matrix
+library(cluster)
+
+
+
+
+gower_distance <- daisy(data_cluster[, c("age", "gender", "education", 
+                                         "occupation", "av_income_factorized", 
+                                         "environment")], 
+                        metric = c("gower"))
+
+
+# divisive clustering
+divisive_clustering <- diana(as.matrix(gower_distance),
+                             diss = TRUE,
+                             keep.diss = TRUE)
+plot(divisive_clustering, main = "Divisive")
+
+
+
+
+
+
+# agglomerative clustering
+agglomorative_clustering <- hclust(gower_distance, method = "complete")
+plot(agglomorative_clustering, main = "Agglomerative")
+
+
+
+
+
+# library(fpc)
+# 
+# c_stats_table <- function(dist, tree, k){
+#   cluster_assess <- c("cluster_number", "n", "within_cluster", "average_within", "average_between", "wb_ratio", "dunn_2", "avg_silwidth")
+#   cluster_size <- c("cluster_size")
+#   stats_names <- c()
+#   row_cluster <- c()
+#   
+#   output_stats <- matrix(ncol = k, nrow = length(cluster_assess))
+#   cluster_sizes <- matrix(ncol = k, nrow = k)
+#   
+#   for (i in c(1:k)){
+#     row_cluster[i] <- paste("Cluster-", i, " size")
+#   }
+#   
+#   for (i in c(2:k)){
+#     stats_names[i] <- paste("Test", i - 1)
+#     
+#     for (j in seq_along(cluster_assess)){
+#       output_stats[j, i] <- unlist(cluster.stats(d = dist, clustering = cutree(tree, k = i))[cluster_assess])[j]
+#     }
+#     
+#     for (d in 1:k){
+#       cluster_sizes[d, i] <- unlist(cluster.stats(d = dist, clustering = cutree(tree, k = i))[cluster_size])[d]
+#       dim(cluster_sizes[d, i]) <- c(length(cluster_sizes[i]), 1)
+#       cluster_sizes[d, i]
+#     }
+#   }
+#   
+#   output_stats_df <- data.frame(output_stats)
+#   
+#   cluster_sizes <- data.frame(cluster_sizes)
+#   cluster_sizes[is.na(cluster_sizes)] <- 0
+#   
+#   rows_all <- c(cluster_assess, row_cluster)
+#   
+#   output <- rbind(output_stats_df, cluster_sizes)[,-1]
+#   colnames(output) <- stats_names[2:k]
+#   rownames(output) <- rows_all
+#   
+#   is_num <- sapply(output, is.numeric)
+#   output[is.num] <- lapply(output[is.num], round, 2)
+#   
+#   output
+# }
+# 
+# 
+# 
+# stats_df_divisive <- c_stats_table(gower_distance, divisive_clustering, 5)
+# stats_df_divisive
+
+
+
+
+
+
+
+
+```
+
+
+
+
+```{r latent class analysis}
+library(poLCA)
+
+formula_1 <- cbind(gender, education, occupation, av_income_factorized, 
+                   environment) ~ 1
+
+lca_1 <- poLCA(formula_1, data_cluster, nclass = 3,
+               maxiter = 10000)
+print(lca_1)
+
+plot(lca_1)
+
+
+# optimize number of classes based on AIC, BIC an max log likelihood
+
+
+
+
+
+
+
+
+```
+
+
+
+
+
+```{r self-organizing maps}
+# library(kohonen)
+# 
+# 
+# # apparently not good for mixed data
+# data_cluster_scaled <- scale(data_cluster)
+# 
+# som_grid_1 <- somgrid(xdim = 5, ydim = 5, topo = "hexagonal")
+# 
+# som_model_1 <- som(data_cluster_scaled, grid = som_grid_1)
+# 
+# plot(som_model_1, type = "codes")
+# 
+# plot(som_model_1, type = "mapping")
+
+
+
+```
+
+
+
+
+```{r cluster variables}
+# nice way of showing relationships of variables
+# plot(hclust(dist(abs(cor(na.omit(data_cluster))))))
+# 
+# print(cor(na.omit(data_cluster)))
+# print(dist(abs(cor(na.omit(data_cluster)))))
+# 
+# 
+# # correlation matrix for categorical data does not make sense does it?
+# # would it work if it's binarized?
+# # the data does not have to be normalized, right?
+# 
+
+
+
+```
+
+
+
+
 
 
 ## Cluster Analysis
@@ -523,8 +930,122 @@ plot(data_cluster_clusters)
 
 
 
+library(ggdendro)
+
+ggdendrogram(data_cluster_clusters)
+
+
+
+
+
+
+
+
+
+
+
 
 ```
+
+
+
+```{r check relationships of variables}
+# chi-squared
+data_categorical <- data_cluster[,c("gender", "Country_Name", "education", 
+                                    "occupation", "av_income_factorized", 
+                                    "environment")]
+
+
+
+
+create_chi_sqaured_matrix <- function(dataframe){
+  column_names <- colnames(dataframe)
+  n <- length(column_names)
+  chi_squared_matrix <- matrix(0, nrow = n, ncol = n)
+  p_matrix <- matrix(0, nrow = n, ncol = n)
+  rownames(chi_squared_matrix) <- column_names
+  colnames(chi_squared_matrix) <- column_names
+  rownames(p_matrix) <- column_names
+  rownames(p_matrix) <- column_names
+  
+  for (i in 1:n){
+    for (j in i:n){
+      if(i == j){
+        chi_squared_matrix[i, j] <- NA
+        p_matrix[i, j] <- NA
+      } else {
+        contingency_table <- table(dataframe[[i]],
+                                   dataframe[[j]])
+        test <- chisq.test(contingency_table)
+        chi_squared_matrix[i, j] <- test$statistic
+        chi_squared_matrix[j, i] <- test$statistic
+        p_matrix[i, j] <- test$p.value
+        p_matrix[j, i] <- test$p.value
+      }
+    }
+  }
+  
+  list(chi_squared_matrix = chi_squared_matrix,
+       p_matrix = p_matrix)
+}
+
+
+
+chi_squared_1 <- create_chi_sqaured_matrix(data_categorical)
+print(chi_squared_1$chi_squared_matrix)
+print(chi_squared_1$p_matrix)
+
+
+
+
+```
+
+
+```{r mutual information}
+library(infotheo)
+
+calculate_mutual_info_matrix <- function(dataframe){
+  column_names <- colnames(dataframe)
+  n <- length(column_names)
+  mi_matrix <- matrix(0, nrow = n, ncol = n)
+  rownames(mi_matrix) <- column_names
+  colnames(mi_matrix) <- column_names
+  
+  for (i in 1:n){
+    for (j in i:n){
+      if (i == j){
+        mi_matrix[i, j] <- 1
+      } else {
+        mi <- mutinformation(dataframe[[i]], dataframe[[j]])
+        mi_matrix[i, j] <- mi
+        mi_matrix[j, i] <- mi
+      }
+    }
+  }
+  
+  return(mi_matrix)
+}
+
+
+mi_1 <- calculate_mutual_info_matrix(data_categorical)
+print(mi_1)
+
+
+heatmap(mi_1)
+
+
+
+
+
+
+```
+
+
+
+
+
+
+
 
 
 ```{r pca}
