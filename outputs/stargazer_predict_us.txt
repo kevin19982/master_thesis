@@ -1,0 +1,54 @@
+
+% Table created by stargazer v.5.2.3 by Marek Hlavac, Social Policy Institute. E-mail: marek.hlavac at gmail.com
+% Date and time: Di, Jul 09, 2024 - 11:16:30
+\begin{table}[!htbp] \centering 
+  \caption{} 
+  \label{} 
+\begin{tabular}{@{\extracolsep{5pt}}lc} 
+\\[-1.8ex]\hline 
+\hline \\[-1.8ex] 
+ & \multicolumn{1}{c}{\textit{Dependent variable:}} \\ 
+\cline{2-2} 
+\\[-1.8ex] & decision \\ 
+\hline \\[-1.8ex] 
+ genderMale & 0.346$^{***}$ (0.056) \\ 
+  genderNon-binary & $-$0.875$^{**}$ (0.395) \\ 
+  genderOther & $-$0.058 (0.367) \\ 
+  educationSecondary School & 1.632$^{***}$ (0.480) \\ 
+  educationSecondary School Academic & 1.113$^{**}$ (0.451) \\ 
+  educationBachelor's Degree & 1.267$^{***}$ (0.448) \\ 
+  educationMaster's Degree & 1.307$^{***}$ (0.452) \\ 
+  educationPh.D. or higher & 1.476$^{***}$ (0.459) \\ 
+  educationNone & 3.621$^{***}$ (0.612) \\ 
+  occupationStudent University & 1.370$^{***}$ (0.315) \\ 
+  occupationIn education or vocational training & 1.068$^{***}$ (0.370) \\ 
+  occupationEmployed & 1.246$^{***}$ (0.319) \\ 
+  occupationRetired & 1.011$^{***}$ (0.352) \\ 
+  occupationLooking for employment & 1.371$^{***}$ (0.337) \\ 
+  occupationOther & 0.331 (0.334) \\ 
+  av\_income\_factorized1000-1500 & $-$0.166$^{*}$ (0.086) \\ 
+  av\_income\_factorized1500-3500 & 0.031 (0.087) \\ 
+  av\_income\_factorized3500-5000 & $-$0.285$^{***}$ (0.103) \\ 
+  av\_income\_factorized\textgreater 5000 & $-$0.488$^{***}$ (0.112) \\ 
+  av\_income\_factorizedNo answer & 0.312$^{**}$ (0.128) \\ 
+  price\_cn & 2.974$^{***}$ (0.072) \\ 
+  price\_no\_cn & $-$2.763$^{***}$ (0.073) \\ 
+  product\_typeGround beef & $-$1.559$^{***}$ (0.195) \\ 
+  product\_typePasta & $-$0.022 (0.061) \\ 
+  environmentNot priority & 0.899$^{***}$ (0.060) \\ 
+  age & 0.064 (0.040) \\ 
+  Country\_NameGermany & $-$0.004 (0.058) \\ 
+  Country\_NameOther & 0.500$^{***}$ (0.091) \\ 
+  purchase\_CHOYes & $-$0.484$^{***}$ (0.072) \\ 
+  purchase\_PAYes & $-$0.222$^{**}$ (0.108) \\ 
+  purchase\_GBYes & $-$0.205$^{***}$ (0.057) \\ 
+  Constant & $-$2.322$^{***}$ (0.580) \\ 
+ \hline \\[-1.8ex] 
+Observations & 11,424 \\ 
+Log Likelihood & $-$5,510.752 \\ 
+Akaike Inf. Crit. & 11,085.500 \\ 
+\hline 
+\hline \\[-1.8ex] 
+\textit{Note:}  & \multicolumn{1}{r}{$^{*}$p$<$0.1; $^{**}$p$<$0.05; $^{***}$p$<$0.01} \\ 
+\end{tabular} 
+\end{table} 

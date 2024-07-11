@@ -1,0 +1,57 @@
+
+% Table created by stargazer v.5.2.3 by Marek Hlavac, Social Policy Institute. E-mail: marek.hlavac at gmail.com
+% Date and time: Di, Jul 09, 2024 - 11:16:24
+\begin{table}[!htbp] \centering 
+  \caption{} 
+  \label{} 
+\begin{tabular}{@{\extracolsep{5pt}}lcccc} 
+\\[-1.8ex]\hline 
+\hline \\[-1.8ex] 
+ & \multicolumn{4}{c}{\textit{Dependent variable:}} \\ 
+\cline{2-5} 
+\\[-1.8ex] & \multicolumn{4}{c}{decision} \\ 
+\\[-1.8ex] & (1) & (2) & (3) & (4)\\ 
+\hline \\[-1.8ex] 
+ genderMale &  & 0.469$^{**}$ (0.216) & 0.507$^{**}$ (0.217) & 0.391$^{*}$ (0.209) \\ 
+  genderNon-binary &  & $-$0.927 (1.411) & $-$0.632 (1.412) & $-$0.298 (1.414) \\ 
+  genderOther &  & 0.104 (1.735) & 0.166 (1.741) & 1.420 (1.693) \\ 
+  educationSecondary School &  & 2.781 (1.941) & 2.827 (1.952) & 3.397$^{*}$ (1.927) \\ 
+  educationSecondary School Academic &  & 1.547 (1.833) & 1.529 (1.843) & 1.849 (1.831) \\ 
+  educationBachelor's Degree &  & 1.980 (1.824) & 2.069 (1.837) & 2.217 (1.821) \\ 
+  educationMaster's Degree &  & 1.853 (1.835) & 1.967 (1.848) & 2.202 (1.833) \\ 
+  educationPh.D. or higher &  & 1.922 (1.862) & 2.091 (1.878) & 2.092 (1.863) \\ 
+  educationNone &  & 5.594$^{**}$ (2.227) & 6.347$^{***}$ (2.255) & 6.389$^{***}$ (2.271) \\ 
+  occupationStudent University &  & 1.160 (0.991) & 1.309 (1.000) &  \\ 
+  occupationIn education or vocational training &  & 0.604 (1.262) & 1.000 (1.281) &  \\ 
+  occupationEmployed &  & 0.618 (1.013) & 1.035 (1.035) &  \\ 
+  occupationRetired &  & 0.056 (1.160) & 0.267 (1.165) &  \\ 
+  occupationLooking for employment &  & 0.817 (1.113) & 1.095 (1.130) &  \\ 
+  occupationOther &  & $-$0.630 (1.087) & $-$0.275 (1.099) &  \\ 
+  av\_income\_factorized1000-1500 &  & $-$0.479 (0.334) & $-$0.470 (0.335) &  \\ 
+  av\_income\_factorized1500-3500 &  & 0.068 (0.355) & 0.014 (0.356) &  \\ 
+  av\_income\_factorized3500-5000 &  & $-$0.324 (0.413) & $-$0.315 (0.416) &  \\ 
+  av\_income\_factorized\textgreater 5000 &  & $-$0.837$^{*}$ (0.446) & $-$0.864$^{*}$ (0.448) &  \\ 
+  av\_income\_factorizedNo answer &  & 0.554 (0.527) & 0.433 (0.529) &  \\ 
+  price\_cn &  & 4.099$^{***}$ (0.147) & 4.134$^{***}$ (0.148) & 4.101$^{***}$ (0.148) \\ 
+  price\_no\_cn &  & $-$3.703$^{***}$ (0.142) & $-$3.753$^{***}$ (0.143) & $-$3.727$^{***}$ (0.143) \\ 
+  product\_typeGround beef &  & $-$2.791$^{***}$ (0.361) & $-$2.813$^{***}$ (0.362) & $-$2.796$^{***}$ (0.361) \\ 
+  product\_typePasta &  & $-$0.046 (0.104) & $-$0.059 (0.105) & $-$0.078 (0.105) \\ 
+  environmentNot priority &  & 1.516$^{***}$ (0.247) & 1.459$^{***}$ (0.248) & 1.320$^{***}$ (0.244) \\ 
+  Country\_NameGermany &  & 0.152 (0.231) & 0.193 (0.232) & 0.313 (0.215) \\ 
+  Country\_NameOther &  & 0.757$^{**}$ (0.357) & 0.839$^{**}$ (0.359) & 1.007$^{***}$ (0.357) \\ 
+  age &  & 0.103 (0.158) & $-$0.106 (0.177) & $-$0.442$^{***}$ (0.137) \\ 
+  I(age$\hat{\mkern6mu}$2) &  &  & 0.271$^{*}$ (0.163) & 0.247$^{*}$ (0.144) \\ 
+  purchase\_CHOYes &  & $-$0.451$^{*}$ (0.236) & $-$0.450$^{*}$ (0.237) & $-$0.413$^{*}$ (0.236) \\ 
+  purchase\_PAYes &  & 0.234 (0.354) & 0.155 (0.355) & 0.249 (0.348) \\ 
+  purchase\_GBYes &  & $-$0.377$^{*}$ (0.211) & $-$0.339 (0.213) & $-$0.455$^{**}$ (0.211) \\ 
+  Constant & $-$1.592$^{***}$ (0.063) & $-$4.700$^{**}$ (2.195) & $-$5.369$^{**}$ (2.258) & $-$4.900$^{**}$ (1.920) \\ 
+ \hline \\[-1.8ex] 
+Observations & 7,157 & 7,157 & 7,157 & 7,157 \\ 
+Log Likelihood & $-$3,430.181 & $-$2,275.727 & $-$2,273.805 & $-$2,285.237 \\ 
+Akaike Inf. Crit. & 6,864.362 & 4,617.454 & 4,615.610 & 4,616.473 \\ 
+Bayesian Inf. Crit. & 6,878.114 & 4,844.357 & 4,849.389 & 4,774.618 \\ 
+\hline 
+\hline \\[-1.8ex] 
+\textit{Note:}  & \multicolumn{4}{r}{$^{*}$p$<$0.1; $^{**}$p$<$0.05; $^{***}$p$<$0.01} \\ 
+\end{tabular} 
+\end{table} 
