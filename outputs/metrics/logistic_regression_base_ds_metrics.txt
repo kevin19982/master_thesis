@@ -1,1 +1,0 @@
-{"accuracy": 75.82, "balanced_accuracy": 76.06, "f1": 59.26, "roc_auc": 81.55, "pre_rec_auc": 58.63}
